@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.codeforafiction.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:python.hotexamples.com)",
+      "WebFetch(domain:groups.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.astro.com)",
+      "Bash(git -C \"/c/Users/Rohan/Astro project\" log --oneline -20)",
+      "WebFetch(domain:astrorigin.com)",
+      "Bash(pip install:*)",
+      "Bash(where:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(/c/Users/Rohan/anaconda3/python.exe -m pip install:*)",
+      "Bash(/c/Users/Rohan/anaconda3/Scripts/conda.exe install:*)",
+      "Bash(/c/Users/Rohan/anaconda3/python.exe:*)",
+      "Bash(/c/Users/Rohan/anaconda3/Scripts/conda.exe search:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
