@@ -416,18 +416,13 @@ def get_chart(req: ChartRequest):
 @app.post("/api/predict")
 def predict(req: PredictRequest, db: Session = Depends(get_db),
             user=Depends(get_current_user_optional)):
-    """Get a prediction for one category — requires payment."""
+    """Get a prediction — free users get a truncated preview."""
     if req.prediction_type not in ("daily", "monthly", "yearly"):
         raise HTTPException(400, "type must be daily, monthly, or yearly")
     if req.category not in ("career", "health", "love"):
         raise HTTPException(400, "category must be career, health, or love")
 
-    # Payment gate
-    if not _check_payment(req.email or "", db):
-        raise HTTPException(
-            status_code=402,
-            detail="Payment required to unlock AI predictions",
-        )
+    is_paid = _check_payment(req.email or "", db)
 
     lat, lon, tz_str, utc_offset, dob = _resolve_location(
         req.place_of_birth, req.date_of_birth, req.time_of_birth
@@ -484,11 +479,19 @@ def predict(req: PredictRequest, db: Session = Depends(get_db),
         else:
             raise HTTPException(502, f"AI service error: {error_msg[:200]}")
 
+    # For unpaid users, truncate to ~50% to build curiosity
+    preview = not is_paid
+    if preview:
+        words = prediction.split()
+        half = max(len(words) // 2, 15)  # at least 15 words
+        prediction = " ".join(words[:half]) + " ..."
+
     return {
         "prediction_type": req.prediction_type,
         "category": req.category,
         "period": target_period,
         "prediction": prediction,
+        "preview": preview,
     }
 
 

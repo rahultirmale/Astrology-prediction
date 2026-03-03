@@ -215,93 +215,99 @@
                 </div>
             </section>
 
-            <!-- Paywall / Predictions Section -->
-            <section id="predictions-wrapper" class="hidden relative">
+            <!-- Predictions Section (preview for free, full for paid) -->
+            <section id="predictions-wrapper" class="hidden">
 
-                <!-- Paywall Overlay -->
-                <div id="paywall-overlay" class="paywall-overlay">
-                    <div class="bg-slate-900/95 backdrop-blur-md border border-amber-500/30 rounded-2xl p-8 max-w-md mx-auto text-center shadow-2xl shadow-amber-500/10">
-                        <div class="text-4xl mb-3">&#128302;</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Unlock AI-Powered Predictions</h3>
-                        <p class="text-gray-400 text-sm mb-4">
-                            Get personalized daily, monthly & yearly predictions for Career, Health & Love Life.
-                            Plus: Best Days of the month & custom date readings.
-                        </p>
-                        <ul class="text-left text-sm space-y-2 mb-6 text-gray-300">
-                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> AI predictions for Career, Health & Love</li>
-                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Daily, Monthly & Yearly readings</li>
-                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Custom date readings</li>
-                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Best days of the month analysis</li>
-                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> One-time payment — lifetime access</li>
-                        </ul>
-                        <div class="mb-4">
-                            <input type="email" id="payment-email" required placeholder="Enter your email to unlock"
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50 mb-3">
+                <!-- Period tabs + custom date picker -->
+                <div class="flex flex-wrap items-end gap-3 mb-6">
+                    <div class="flex gap-2">
+                        <button onclick="switchPeriod('daily')" id="period-daily"
+                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all bg-amber-500/20 text-amber-400 border border-amber-500/30">Daily</button>
+                        <button onclick="switchPeriod('monthly')" id="period-monthly"
+                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Monthly</button>
+                        <button onclick="switchPeriod('yearly')" id="period-yearly"
+                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Yearly</button>
+                    </div>
+                    <div class="flex items-end gap-2 ml-auto">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Custom Date</label>
+                            <input type="date" id="prediction-date"
+                                   class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
                         </div>
-                        <button onclick="initPayment()" id="pay-btn"
-                                class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500
-                                       hover:from-amber-400 hover:to-orange-400 text-white font-bold
-                                       rounded-lg transition-all transform hover:scale-[1.01] active:scale-[0.99] text-lg">
-                            Unlock Predictions — &#8377;499
+                        <button onclick="loadCustomDatePredictions()" id="custom-date-btn"
+                                class="px-4 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
+                            Get Reading
                         </button>
-                        <p class="text-gray-500 text-xs mt-3">Secure payment via Razorpay. One-time fee, no subscription.</p>
-                        <div id="payment-error" class="hidden mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs"></div>
+                    </div>
+                </div>
+                <div id="prediction-date-label" class="hidden mb-4 text-sm text-gray-400">
+                    Showing predictions for: <span id="prediction-date-display" class="text-amber-400 font-medium"></span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg">&#128188;</div>
+                            <h3 class="font-semibold text-blue-400">Career</h3>
+                        </div>
+                        <div id="pred-career" class="prediction-container text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                    </div>
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-lg">&#128154;</div>
+                            <h3 class="font-semibold text-green-400">Health</h3>
+                        </div>
+                        <div id="pred-health" class="prediction-container text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                    </div>
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">&#10084;&#65039;</div>
+                            <h3 class="font-semibold text-pink-400">Love Life</h3>
+                        </div>
+                        <div id="pred-love" class="prediction-container text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
                     </div>
                 </div>
 
-                <!-- Actual Predictions Content (blurred when locked) -->
-                <div id="predictions-content">
-                    <!-- Period tabs + custom date picker -->
-                    <div class="flex flex-wrap items-end gap-3 mb-6">
-                        <div class="flex gap-2">
-                            <button onclick="switchPeriod('daily')" id="period-daily"
-                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all bg-amber-500/20 text-amber-400 border border-amber-500/30">Daily</button>
-                            <button onclick="switchPeriod('monthly')" id="period-monthly"
-                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Monthly</button>
-                            <button onclick="switchPeriod('yearly')" id="period-yearly"
-                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Yearly</button>
-                        </div>
-                        <div class="flex items-end gap-2 ml-auto">
-                            <div>
-                                <label class="block text-xs text-gray-400 mb-1">Custom Date</label>
-                                <input type="date" id="prediction-date"
-                                       class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                <!-- Unlock Banner (shown for free users after preview) -->
+                <div id="unlock-banner" class="hidden mb-10">
+                    <div class="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/30 rounded-2xl p-6 md:p-8">
+                        <div class="flex flex-col md:flex-row items-center gap-6">
+                            <div class="flex-1 text-center md:text-left">
+                                <h3 class="text-lg font-bold text-white mb-1">&#128302; Want the full reading?</h3>
+                                <p class="text-gray-400 text-sm mb-3">
+                                    Unlock complete predictions, custom date readings & best days analysis — one-time payment, lifetime access.
+                                </p>
+                                <div class="flex flex-wrap gap-3 text-xs text-gray-400 justify-center md:justify-start">
+                                    <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Full AI predictions</span>
+                                    <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Best days of month</span>
+                                    <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Custom date readings</span>
+                                </div>
                             </div>
-                            <button onclick="loadCustomDatePredictions()" id="custom-date-btn"
-                                    class="px-4 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
-                                Get Reading
-                            </button>
+                            <div class="flex flex-col items-center gap-2 min-w-[260px]">
+                                <input type="email" id="payment-email" required placeholder="Enter your email"
+                                       class="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                                <button onclick="initPayment()" id="pay-btn"
+                                        class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500
+                                               hover:from-amber-400 hover:to-orange-400 text-white font-bold
+                                               rounded-lg transition-all transform hover:scale-[1.01] active:scale-[0.99]">
+                                    Unlock Full Reading — &#8377;499
+                                </button>
+                                <p class="text-gray-500 text-[10px]">Secure payment via Razorpay. One-time fee.</p>
+                                <div id="payment-error" class="hidden w-full p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs"></div>
+                            </div>
                         </div>
                     </div>
-                    <div id="prediction-date-label" class="hidden mb-4 text-sm text-gray-400">
-                        Showing predictions for: <span id="prediction-date-display" class="text-amber-400 font-medium"></span>
-                    </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg">&#128188;</div>
-                                <h3 class="font-semibold text-blue-400">Career</h3>
-                            </div>
-                            <div id="pred-career" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
-                        </div>
-                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-lg">&#128154;</div>
-                                <h3 class="font-semibold text-green-400">Health</h3>
-                            </div>
-                            <div id="pred-health" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
-                        </div>
-                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">&#10084;&#65039;</div>
-                                <h3 class="font-semibold text-pink-400">Love Life</h3>
-                            </div>
-                            <div id="pred-love" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                <!-- Best Days (fully locked for free users) -->
+                <div id="best-days-wrapper" class="relative mb-10">
+                    <div id="best-days-lock-overlay" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-2xl cursor-pointer" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                        <div class="text-center p-6">
+                            <div class="text-3xl mb-2">&#128274;</div>
+                            <p class="text-amber-400 font-semibold text-sm">Pay &#8377;499 to unlock Best Days</p>
+                            <p class="text-gray-400 text-xs mt-1">Scroll up to the unlock banner</p>
                         </div>
                     </div>
-
-                    <!-- Best Days -->
                     <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
                         <h2 class="text-lg font-semibold text-amber-400 mb-4">Best Days of the Month</h2>
                         <div class="flex flex-wrap gap-3 mb-6">
@@ -340,6 +346,7 @@
                     </div>
                 </div>
             </section>
+
         </main>
 
         <footer class="border-t border-white/10 py-6 mt-10">

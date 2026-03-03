@@ -143,28 +143,32 @@ select option {
 .badge-retro { background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-size: 0.6rem; }
 .badge-direct { background: rgba(255, 255, 255, 0.05); color: #6b7280; font-size: 0.6rem; }
 
-/* ---- Paywall Overlay ---- */
-.paywall-overlay {
+/* ---- Prediction Preview Fade ---- */
+.prediction-preview {
+    position: relative;
+}
+.preview-text-fade {
+    position: relative;
+    overflow: hidden;
+}
+.preview-text-fade::after {
+    content: "";
     position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(6px);
-    border-radius: 1rem;
-}
-.paywall-overlay.hidden {
-    display: none;
-}
-
-/* Blur the content behind the paywall */
-#predictions-content.locked {
-    filter: blur(6px);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3.5em;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(15, 23, 42, 0.7) 50%,
+        rgba(15, 23, 42, 0.95) 100%
+    );
     pointer-events: none;
-    user-select: none;
+}
+.preview-cta {
+    text-align: center;
+    padding-top: 0.5rem;
 }
 
 /* Yoga card */

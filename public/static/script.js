@@ -224,11 +224,9 @@ async function getReading(e) {
         // Check payment state and update UI
         await checkAndUpdatePaywall();
 
-        // If paid, auto-load predictions
-        if (state.isPaid) {
-            state.activePeriod = "daily";
-            loadPredictions("daily");
-        }
+        // Always load predictions (preview for free, full for paid)
+        state.activePeriod = "daily";
+        loadPredictions("daily");
 
         document.getElementById("chart-summary").scrollIntoView({ behavior: "smooth" });
 
@@ -489,15 +487,15 @@ async function checkAndUpdatePaywall() {
 }
 
 function updatePaywallUI() {
-    const overlay = document.getElementById("paywall-overlay");
-    const content = document.getElementById("predictions-content");
+    const unlockBanner = document.getElementById("unlock-banner");
+    const bestDaysLock = document.getElementById("best-days-lock-overlay");
 
     if (state.isPaid) {
-        overlay.classList.add("hidden");
-        content.classList.remove("locked");
+        unlockBanner.classList.add("hidden");
+        bestDaysLock.classList.add("hidden");
     } else {
-        overlay.classList.remove("hidden");
-        content.classList.add("locked");
+        unlockBanner.classList.remove("hidden");
+        bestDaysLock.classList.remove("hidden");
         // Pre-fill email if we have it
         if (state.email) {
             document.getElementById("payment-email").value = state.email;
@@ -533,6 +531,7 @@ async function initPayment() {
             state.email = email;
             localStorage.setItem("isPaid", "true");
             localStorage.setItem("paymentEmail", email);
+            state.predictions = {};  // clear preview cache to reload full
             updatePaywallUI();
             loadPredictions(state.activePeriod);
             return;
@@ -554,7 +553,7 @@ async function initPayment() {
             modal: {
                 ondismiss: function () {
                     btn.disabled = false;
-                    btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;499";
                 },
             },
         };
@@ -565,7 +564,7 @@ async function initPayment() {
         errorEl.textContent = err.message;
         errorEl.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;499";
     }
 }
 
@@ -590,15 +589,16 @@ async function verifyPayment(email, response) {
         state.email = email;
         localStorage.setItem("isPaid", "true");
         localStorage.setItem("paymentEmail", email);
+        state.predictions = {};  // clear preview cache to reload full
         updatePaywallUI();
 
-        // Auto-load predictions
+        // Reload predictions with full content
         loadPredictions(state.activePeriod);
     } catch (err) {
         errorEl.textContent = "Payment verification failed: " + err.message;
         errorEl.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;499";
     }
 }
 
@@ -611,9 +611,20 @@ function showLoading(category) {
         `<div class="loading-skeleton"></div>`;
 }
 
-function showPrediction(category, text) {
-    document.getElementById(`pred-${category}`).innerHTML =
-        `<div class="prediction-text">${escapeHtml(text)}</div>`;
+function showPrediction(category, text, isPreview = false) {
+    const container = document.getElementById(`pred-${category}`);
+    if (isPreview) {
+        container.innerHTML =
+            `<div class="prediction-text prediction-preview">
+                <div class="preview-text-fade">${escapeHtml(text)}</div>
+                <div class="preview-cta" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                    <span class="text-amber-400 text-xs font-semibold cursor-pointer hover:text-amber-300 transition-colors">&#128274; Unlock full reading &rarr;</span>
+                </div>
+            </div>`;
+    } else {
+        container.innerHTML =
+            `<div class="prediction-text">${escapeHtml(text)}</div>`;
+    }
 }
 
 function showPredictionError(category, msg) {
@@ -622,17 +633,18 @@ function showPredictionError(category, msg) {
 }
 
 async function loadPredictions(period, targetDate) {
-    if (!state.birthDetails || !state.isPaid) return;
+    if (!state.birthDetails) return;
     state.activePeriod = period;
     const dateKey = targetDate || "";
+    const paidKey = state.isPaid ? "full" : "preview";
 
     ["career", "health", "love"].forEach(showLoading);
 
     const categories = ["career", "health", "love"];
     const promises = categories.map(async (cat) => {
-        const key = `${period}_${cat}_${dateKey}`;
+        const key = `${period}_${cat}_${dateKey}_${paidKey}`;
         if (state.predictions[key]) {
-            showPrediction(cat, state.predictions[key]);
+            showPrediction(cat, state.predictions[key].text, state.predictions[key].preview);
             return;
         }
         try {
@@ -648,17 +660,10 @@ async function loadPredictions(period, targetDate) {
                 method: "POST",
                 body: JSON.stringify(payload),
             });
-            state.predictions[key] = data.prediction;
-            showPrediction(cat, data.prediction);
+            state.predictions[key] = { text: data.prediction, preview: data.preview };
+            showPrediction(cat, data.prediction, data.preview);
         } catch (err) {
-            if (err.status === 402) {
-                // Payment required — show paywall
-                state.isPaid = false;
-                localStorage.removeItem("isPaid");
-                updatePaywallUI();
-            } else {
-                showPredictionError(cat, err.message);
-            }
+            showPredictionError(cat, err.message);
         }
     });
 
