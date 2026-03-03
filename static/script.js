@@ -465,6 +465,17 @@ function toggleDashaDetail(el) {
 }
 
 // ---------------------------------------------------------------------------
+// Collapsible Section Toggle
+// ---------------------------------------------------------------------------
+
+function toggleSection(id) {
+    const body = document.getElementById(`${id}-body`);
+    const arrow = body.parentElement.querySelector('.section-arrow');
+    body.classList.toggle('hidden');
+    if (arrow) arrow.classList.toggle('rotate-180');
+}
+
+// ---------------------------------------------------------------------------
 // Payment / Paywall
 // ---------------------------------------------------------------------------
 

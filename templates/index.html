@@ -82,9 +82,15 @@
                 <div class="text-center mb-8">
                     <div class="text-5xl mb-3">&#9790;</div>
                     <h2 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent mb-2">
-                        Your Vedic Astrology Reading
+                        Your Personal Vedic Astrology Reading
                     </h2>
-                    <p class="text-gray-400">Enter your birth details for personalized AI-powered predictions</p>
+                    <p class="text-gray-400 mb-4">Precise planetary calculations + AI-powered predictions based on your unique birth chart</p>
+                    <div class="flex flex-wrap justify-center gap-2 md:gap-3">
+                        <span class="feature-pill">&#9788; 9-Planet Analysis</span>
+                        <span class="feature-pill">&#128197; Daily &middot; Monthly &middot; Yearly</span>
+                        <span class="feature-pill">&#11088; Best Days of the Month</span>
+                        <span class="feature-pill">&#128302; Career &middot; Health &middot; Love</span>
+                    </div>
                 </div>
 
                 <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 max-w-2xl mx-auto">
@@ -145,73 +151,98 @@
                 </div>
             </section>
 
-            <!-- Planet Positions Table -->
-            <section id="planets-section" class="hidden mb-8">
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Planetary Positions</h2>
-                    <div class="overflow-x-auto">
-                        <table class="astro-table w-full text-sm">
-                            <thead>
-                                <tr class="text-gray-400 text-xs border-b border-white/10">
-                                    <th class="text-left py-2 px-3">Planet</th>
-                                    <th class="text-left py-2 px-3">Sign</th>
-                                    <th class="text-right py-2 px-3">Degree</th>
-                                    <th class="text-center py-2 px-3">House</th>
-                                    <th class="text-center py-2 px-3">Status</th>
-                                    <th class="text-center py-2 px-3">Dignity</th>
-                                </tr>
-                            </thead>
-                            <tbody id="planets-table-body"></tbody>
-                        </table>
+            <!-- Planet Positions Table (collapsible) -->
+            <section id="planets-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('planets')">
+                        <h2 class="text-base font-semibold text-amber-400">&#9788; Planetary Positions</h2>
+                        <span class="section-arrow text-gray-500 text-xs">&#9660;</span>
+                    </div>
+                    <div id="planets-body" class="hidden px-6 pb-6">
+                        <div class="overflow-x-auto">
+                            <table class="astro-table w-full text-sm">
+                                <thead>
+                                    <tr class="text-gray-400 text-xs border-b border-white/10">
+                                        <th class="text-left py-2 px-3">Planet</th>
+                                        <th class="text-left py-2 px-3">Sign</th>
+                                        <th class="text-right py-2 px-3">Degree</th>
+                                        <th class="text-center py-2 px-3">House</th>
+                                        <th class="text-center py-2 px-3">Status</th>
+                                        <th class="text-center py-2 px-3">Dignity</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planets-table-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Current Transits Table -->
-            <section id="transits-section" class="hidden mb-8">
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Current Transits (Gochar)</h2>
-                    <div class="overflow-x-auto">
-                        <table class="astro-table w-full text-sm">
-                            <thead>
-                                <tr class="text-gray-400 text-xs border-b border-white/10">
-                                    <th class="text-left py-2 px-3">Planet</th>
-                                    <th class="text-left py-2 px-3">Transit Sign</th>
-                                    <th class="text-center py-2 px-3">House from Moon</th>
-                                    <th class="text-center py-2 px-3">Effect</th>
-                                    <th class="text-center py-2 px-3">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="transits-table-body"></tbody>
-                        </table>
+            <!-- Current Transits Table (collapsible) -->
+            <section id="transits-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('transits')">
+                        <h2 class="text-base font-semibold text-amber-400">&#127760; Current Transits (Gochar)</h2>
+                        <span class="section-arrow text-gray-500 text-xs">&#9660;</span>
+                    </div>
+                    <div id="transits-body" class="hidden px-6 pb-6">
+                        <div class="overflow-x-auto">
+                            <table class="astro-table w-full text-sm">
+                                <thead>
+                                    <tr class="text-gray-400 text-xs border-b border-white/10">
+                                        <th class="text-left py-2 px-3">Planet</th>
+                                        <th class="text-left py-2 px-3">Transit Sign</th>
+                                        <th class="text-center py-2 px-3">House from Moon</th>
+                                        <th class="text-center py-2 px-3">Effect</th>
+                                        <th class="text-center py-2 px-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transits-table-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- House Lords Grid -->
-            <section id="houses-section" class="hidden mb-8">
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">House Lords (Bhava Patis)</h2>
-                    <div id="houses-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
-                </div>
-            </section>
-
-            <!-- Yogas Section -->
-            <section id="yogas-section" class="hidden mb-8">
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Yogas (Planetary Combinations)</h2>
-                    <div id="yogas-container"></div>
-                    <div id="no-yogas" class="hidden text-gray-400 text-sm">
-                        No major yogas detected in this chart. This is normal — many charts have subtle yogas that require deeper analysis.
+            <!-- House Lords Grid (collapsible) -->
+            <section id="houses-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('houses')">
+                        <h2 class="text-base font-semibold text-amber-400">&#127968; House Lords (Bhava Patis)</h2>
+                        <span class="section-arrow text-gray-500 text-xs">&#9660;</span>
+                    </div>
+                    <div id="houses-body" class="hidden px-6 pb-6">
+                        <div id="houses-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- Dasha Timeline -->
-            <section id="dasha-section" class="hidden mb-8">
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Vimshottari Dasha Timeline</h2>
-                    <div id="dasha-timeline" class="space-y-2"></div>
+            <!-- Yogas Section (collapsible) -->
+            <section id="yogas-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('yogas')">
+                        <h2 class="text-base font-semibold text-amber-400">&#10022; Yogas (Planetary Combinations)</h2>
+                        <span class="section-arrow text-gray-500 text-xs">&#9660;</span>
+                    </div>
+                    <div id="yogas-body" class="hidden px-6 pb-6">
+                        <div id="yogas-container"></div>
+                        <div id="no-yogas" class="hidden text-gray-400 text-sm">
+                            No major yogas detected in this chart. This is normal — many charts have subtle yogas that require deeper analysis.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dasha Timeline (collapsible) -->
+            <section id="dasha-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('dasha')">
+                        <h2 class="text-base font-semibold text-amber-400">&#128197; Vimshottari Dasha Timeline</h2>
+                        <span class="section-arrow text-gray-500 text-xs">&#9660;</span>
+                    </div>
+                    <div id="dasha-body" class="hidden px-6 pb-6">
+                        <div id="dasha-timeline" class="space-y-2"></div>
+                    </div>
                 </div>
             </section>
 

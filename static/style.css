@@ -195,3 +195,32 @@ select option {
 .house-card:hover {
     border-color: rgba(245, 158, 11, 0.3);
 }
+
+/* ---- Collapsible Section Headers ---- */
+.section-header {
+    transition: background 0.15s ease;
+    border-radius: 1rem;
+}
+.section-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+.section-arrow {
+    transition: transform 0.2s ease;
+}
+.section-arrow.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* ---- Feature Pills (hero) ---- */
+.feature-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: #fbbf24;
+    white-space: nowrap;
+}
