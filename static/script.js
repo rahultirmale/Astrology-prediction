@@ -214,6 +214,9 @@ async function getReading(e) {
         displayYogas(chart);
         displayDashaTimeline(chart.dasha_timeline);
 
+        // Show compatibility section (form ready)
+        document.getElementById("compatibility-section").classList.remove("hidden");
+
         // Show predictions wrapper and update paywall state
         document.getElementById("predictions-wrapper").classList.remove("hidden");
         const now = new Date();
@@ -476,6 +479,198 @@ function toggleSection(id) {
 }
 
 // ---------------------------------------------------------------------------
+// Love Compatibility
+// ---------------------------------------------------------------------------
+
+function switchCompatTab(tab) {
+    const gunmilanTab = document.getElementById("compat-tab-gunmilan");
+    const partnerTab = document.getElementById("compat-tab-partner");
+    const gunmilanPanel = document.getElementById("compat-gunmilan-panel");
+    const partnerPanel = document.getElementById("compat-partner-panel");
+
+    if (tab === "gunmilan") {
+        gunmilanTab.classList.remove("text-gray-400", "border-white/10");
+        gunmilanTab.classList.add("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
+        partnerTab.classList.remove("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
+        partnerTab.classList.add("text-gray-400", "border-white/10");
+        gunmilanPanel.classList.remove("hidden");
+        partnerPanel.classList.add("hidden");
+    } else {
+        partnerTab.classList.remove("text-gray-400", "border-white/10");
+        partnerTab.classList.add("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
+        gunmilanTab.classList.remove("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
+        gunmilanTab.classList.add("text-gray-400", "border-white/10");
+        partnerPanel.classList.remove("hidden");
+        gunmilanPanel.classList.add("hidden");
+    }
+}
+
+async function calculateCompatibility() {
+    if (!state.birthDetails) return;
+
+    const partnerDob = document.getElementById("partner-dob").value;
+    const partnerTob = document.getElementById("partner-tob").value;
+    const partnerPob = document.getElementById("partner-pob").value;
+    const btn = document.getElementById("compat-btn");
+    const errorEl = document.getElementById("compat-error");
+    errorEl.classList.add("hidden");
+
+    if (!partnerDob || !partnerTob || !partnerPob) {
+        errorEl.textContent = "Please fill in all partner birth details.";
+        errorEl.classList.remove("hidden");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Calculating...";
+    document.getElementById("compat-results").classList.add("hidden");
+    document.getElementById("compat-loading").classList.remove("hidden");
+
+    try {
+        const data = await api("/compatibility", {
+            method: "POST",
+            body: JSON.stringify({
+                ...getBirthPayload(),
+                partner_date_of_birth: partnerDob,
+                partner_time_of_birth: partnerTob,
+                partner_place_of_birth: partnerPob,
+                email: state.email,
+            }),
+        });
+
+        displayGunMilanResults(data);
+
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "&#128149; Check Compatibility";
+        document.getElementById("compat-loading").classList.add("hidden");
+    }
+}
+
+function displayGunMilanResults(data) {
+    const gm = data.gun_milan;
+
+    // Score circle
+    document.getElementById("compat-score-value").textContent = gm.total_score;
+    document.getElementById("compat-verdict").textContent = gm.verdict;
+
+    // Person info
+    document.getElementById("compat-boy-info").textContent =
+        `${gm.boy_rashi} (${gm.boy_nakshatra})`;
+    document.getElementById("compat-girl-info").textContent =
+        `${gm.girl_rashi} (${gm.girl_nakshatra})`;
+
+    // Color the score based on value
+    const circle = document.getElementById("compat-score-circle");
+    if (gm.total_score >= 28) {
+        circle.style.borderColor = "rgba(16, 185, 129, 0.5)";
+    } else if (gm.total_score >= 21) {
+        circle.style.borderColor = "rgba(245, 158, 11, 0.5)";
+    } else if (gm.total_score >= 18) {
+        circle.style.borderColor = "rgba(251, 146, 60, 0.5)";
+    } else {
+        circle.style.borderColor = "rgba(239, 68, 68, 0.5)";
+    }
+
+    // Nadi Dosha warning
+    if (gm.nadi_dosha) {
+        document.getElementById("compat-nadi-warning").classList.remove("hidden");
+    } else {
+        document.getElementById("compat-nadi-warning").classList.add("hidden");
+    }
+
+    // Kuta score cards
+    const grid = document.getElementById("compat-kutas-grid");
+    grid.innerHTML = gm.kutas.map(k => {
+        const pct = (k.score / k.max) * 100;
+        const barColor = pct >= 75 ? "#34d399" : pct >= 50 ? "#fbbf24" : pct > 0 ? "#fb923c" : "#f87171";
+        return `<div class="kuta-card">
+            <div class="text-xs text-gray-400 mb-1">${k.name}</div>
+            <div class="flex items-baseline gap-1">
+                <span class="text-lg font-bold text-white">${k.score}</span>
+                <span class="text-xs text-gray-500">/ ${k.max}</span>
+            </div>
+            <div class="kuta-bar mt-1">
+                <div class="kuta-bar-fill" style="width: ${pct}%; background: ${barColor}"></div>
+            </div>
+            <div class="text-[10px] text-gray-500 mt-1">${k.description}</div>
+        </div>`;
+    }).join("");
+
+    // AI Interpretation
+    const aiSection = document.getElementById("compat-ai-section");
+    const aiText = document.getElementById("compat-ai-text");
+    if (data.ai_interpretation) {
+        aiText.innerHTML = escapeHtml(data.ai_interpretation);
+        aiSection.classList.remove("hidden");
+    } else if (data.preview) {
+        aiText.innerHTML = `<div class="prediction-preview">
+            <div class="text-gray-500 text-xs mb-2">AI interpretation available with full access</div>
+            <span class="text-amber-400 text-xs font-semibold cursor-pointer hover:text-amber-300 transition-colors" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">&#128274; Unlock AI interpretation &rarr;</span>
+        </div>`;
+        aiSection.classList.remove("hidden");
+    }
+
+    document.getElementById("compat-results").classList.remove("hidden");
+}
+
+async function loadPartnerPrediction() {
+    if (!state.birthDetails) return;
+
+    if (!state.isPaid) {
+        document.getElementById("partner-pred-lock").classList.remove("hidden");
+        return;
+    }
+
+    const gender = document.getElementById("partner-pred-gender").value;
+    const btn = document.getElementById("partner-pred-btn");
+    const errorEl = document.getElementById("partner-pred-error");
+    errorEl.classList.add("hidden");
+
+    btn.disabled = true;
+    btn.textContent = "Analyzing...";
+    document.getElementById("partner-pred-results").classList.add("hidden");
+    document.getElementById("partner-pred-loading").classList.remove("hidden");
+
+    try {
+        const data = await api("/partner-prediction", {
+            method: "POST",
+            body: JSON.stringify({
+                ...getBirthPayload(),
+                gender: gender,
+                email: state.email,
+            }),
+        });
+
+        document.getElementById("partner-dk-planet").textContent =
+            `${data.darakaraka.planet} in ${data.darakaraka.sign}`;
+        document.getElementById("partner-7th-lord").textContent =
+            data.seventh_house_lord || "--";
+        document.getElementById("partner-pred-text").innerHTML =
+            escapeHtml(data.prediction);
+
+        document.getElementById("partner-pred-loading").classList.add("hidden");
+        document.getElementById("partner-pred-results").classList.remove("hidden");
+
+    } catch (err) {
+        if (err.status === 402) {
+            state.isPaid = false;
+            localStorage.removeItem("isPaid");
+            updatePaywallUI();
+        }
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+        document.getElementById("partner-pred-loading").classList.add("hidden");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "&#128302; Predict My Partner";
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Payment / Paywall
 // ---------------------------------------------------------------------------
 
@@ -501,12 +696,16 @@ function updatePaywallUI() {
     const unlockBanner = document.getElementById("unlock-banner");
     const bestDaysLock = document.getElementById("best-days-lock-overlay");
 
+    const partnerPredLock = document.getElementById("partner-pred-lock");
+
     if (state.isPaid) {
         unlockBanner.classList.add("hidden");
         bestDaysLock.classList.add("hidden");
+        if (partnerPredLock) partnerPredLock.classList.add("hidden");
     } else {
         unlockBanner.classList.remove("hidden");
         bestDaysLock.classList.remove("hidden");
+        if (partnerPredLock) partnerPredLock.classList.remove("hidden");
         // Pre-fill email if we have it
         if (state.email) {
             document.getElementById("payment-email").value = state.email;

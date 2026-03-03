@@ -90,6 +90,7 @@
                         <span class="feature-pill">&#128197; Daily &middot; Monthly &middot; Yearly</span>
                         <span class="feature-pill">&#11088; Best Days of the Month</span>
                         <span class="feature-pill">&#128302; Career &middot; Health &middot; Love</span>
+                        <span class="feature-pill">&#128149; Love Compatibility</span>
                     </div>
                 </div>
 
@@ -242,6 +243,135 @@
                     </div>
                     <div id="dasha-body" class="hidden px-6 pb-6">
                         <div id="dasha-timeline" class="space-y-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Love Compatibility Section (collapsible, starts expanded for form) -->
+            <section id="compatibility-section" class="hidden mb-4">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+                    <div class="section-header flex items-center justify-between px-6 py-4 cursor-pointer" onclick="toggleSection('compatibility')">
+                        <h2 class="text-base font-semibold text-pink-400">&#128149; Love Compatibility</h2>
+                        <span class="section-arrow text-gray-500 text-xs rotate-180">&#9660;</span>
+                    </div>
+                    <div id="compatibility-body" class="px-6 pb-6">
+
+                        <!-- Tabs: Gun Milan vs Partner Prediction -->
+                        <div class="flex gap-2 mb-6">
+                            <button onclick="switchCompatTab('gunmilan')" id="compat-tab-gunmilan"
+                                    class="compat-tab px-4 py-2 rounded-lg text-sm font-medium transition-all bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                                Ashtakoot Gun Milan
+                            </button>
+                            <button onclick="switchCompatTab('partner')" id="compat-tab-partner"
+                                    class="compat-tab px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">
+                                Predict My Partner
+                            </button>
+                        </div>
+
+                        <!-- Gun Milan Panel -->
+                        <div id="compat-gunmilan-panel">
+                            <p class="text-gray-400 text-xs mb-4">Enter your partner's birth details to calculate Ashtakoot compatibility score (36 points).</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Partner's Date of Birth</label>
+                                    <input type="date" id="partner-dob"
+                                           class="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-pink-500/50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Partner's Time of Birth</label>
+                                    <input type="time" id="partner-tob"
+                                           class="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-pink-500/50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Partner's Place of Birth</label>
+                                    <input type="text" id="partner-pob" placeholder="e.g., Delhi, India"
+                                           class="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-pink-500/50">
+                                </div>
+                            </div>
+                            <button onclick="calculateCompatibility()" id="compat-btn"
+                                    class="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-semibold rounded-lg transition-all text-sm">
+                                &#128149; Check Compatibility
+                            </button>
+
+                            <!-- Gun Milan Results -->
+                            <div id="compat-results" class="hidden mt-6">
+                                <div class="flex flex-col items-center mb-6">
+                                    <div id="compat-score-circle" class="compat-score-circle">
+                                        <span id="compat-score-value" class="text-3xl font-bold text-white">--</span>
+                                        <span class="text-xs text-gray-400">/36</span>
+                                    </div>
+                                    <div id="compat-verdict" class="text-sm font-semibold mt-2 text-pink-400"></div>
+                                    <div class="flex gap-3 mt-2 text-xs text-gray-400">
+                                        <span>You: <span id="compat-boy-info" class="text-white"></span></span>
+                                        <span>Partner: <span id="compat-girl-info" class="text-white"></span></span>
+                                    </div>
+                                    <div id="compat-nadi-warning" class="hidden mt-2 text-xs text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-1">
+                                        &#9888; Nadi Dosha Present &mdash; consult an astrologer for remedies
+                                    </div>
+                                </div>
+
+                                <div id="compat-kutas-grid" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+                                <div id="compat-ai-section" class="hidden border-t border-white/10 pt-4">
+                                    <h3 class="text-sm font-medium text-gray-300 mb-2">AI Interpretation</h3>
+                                    <div id="compat-ai-text" class="text-gray-400 text-sm leading-relaxed"></div>
+                                </div>
+                            </div>
+
+                            <div id="compat-loading" class="hidden py-8 text-center">
+                                <div class="loading-star text-3xl mb-2">&#128149;</div>
+                                <p class="text-gray-400 text-sm">Calculating compatibility...</p>
+                            </div>
+                            <div id="compat-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
+                        </div>
+
+                        <!-- Partner Prediction Panel -->
+                        <div id="compat-partner-panel" class="hidden">
+                            <p class="text-gray-400 text-xs mb-4">Discover what your birth chart reveals about your ideal life partner.</p>
+                            <div class="flex gap-3 mb-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Your Gender</label>
+                                    <select id="partner-pred-gender"
+                                            class="px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-pink-500/50">
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-end">
+                                    <button onclick="loadPartnerPrediction()" id="partner-pred-btn"
+                                            class="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-semibold rounded-lg transition-all text-sm">
+                                        &#128302; Predict My Partner
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="partner-pred-lock" class="hidden bg-white/5 rounded-lg p-6 text-center cursor-pointer" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                                <div class="text-2xl mb-2">&#128274;</div>
+                                <p class="text-amber-400 font-semibold text-sm">Pay &#8377;499 to unlock Partner Predictions</p>
+                                <p class="text-gray-500 text-xs mt-1">Scroll up to the unlock banner</p>
+                            </div>
+
+                            <div id="partner-pred-results" class="hidden">
+                                <div class="flex gap-3 mb-4">
+                                    <div class="bg-white/5 rounded-lg p-3">
+                                        <div class="text-xs text-gray-400">Darakaraka</div>
+                                        <div id="partner-dk-planet" class="font-semibold text-pink-400 text-sm">--</div>
+                                    </div>
+                                    <div class="bg-white/5 rounded-lg p-3">
+                                        <div class="text-xs text-gray-400">7th House Lord</div>
+                                        <div id="partner-7th-lord" class="font-semibold text-pink-400 text-sm">--</div>
+                                    </div>
+                                </div>
+                                <div class="text-gray-300 text-sm leading-relaxed" id="partner-pred-text"></div>
+                            </div>
+
+                            <div id="partner-pred-loading" class="hidden py-8 text-center">
+                                <div class="loading-star text-3xl mb-2">&#128302;</div>
+                                <p class="text-gray-400 text-sm">Analyzing your chart for partner insights...</p>
+                            </div>
+                            <div id="partner-pred-error" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
+                        </div>
+
                     </div>
                 </div>
             </section>

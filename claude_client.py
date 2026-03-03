@@ -149,6 +149,114 @@ def build_best_days_prompt(chart_data: dict, category: str,
     return "\n".join(lines)
 
 
+def build_compatibility_prompt(gun_milan: dict, boy_chart: dict,
+                                girl_chart: dict) -> str:
+    """Build prompt for AI interpretation of Gun Milan results."""
+    lines = [
+        "Analyze the following Ashtakoot Gun Milan compatibility results between two "
+        "people and provide an insightful Vedic astrology interpretation.",
+        "",
+        "=== GUN MILAN SCORES ===",
+        f"Total Score: {gun_milan['total_score']} / {gun_milan['max_score']} "
+        f"({gun_milan['percentage']}%)",
+        f"Verdict: {gun_milan['verdict']}",
+        f"Nadi Dosha: {'YES - Present' if gun_milan['nadi_dosha'] else 'No'}",
+        "",
+        "Individual Kuta Scores:",
+    ]
+    for k in gun_milan["kutas"]:
+        lines.append(f"  {k['name']}: {k['score']}/{k['max']} - {k['description']}")
+
+    boy_natal = boy_chart["natal_chart"]
+    girl_natal = girl_chart["natal_chart"]
+    lines += [
+        "",
+        f"Person 1 Moon: {gun_milan['boy_rashi']} ({gun_milan['boy_nakshatra']})",
+        f"Person 2 Moon: {gun_milan['girl_rashi']} ({gun_milan['girl_nakshatra']})",
+        "",
+        "=== PERSON 1 KEY CHART DETAILS ===",
+        f"Ascendant: {boy_natal['ascendant']['sign']}",
+        f"Venus: {boy_natal['planets']['Venus']['sign']} "
+        f"(House {boy_natal['planets']['Venus']['house']})",
+        f"7th House Lord: {boy_natal['house_lords'].get(7, 'N/A')}",
+        "",
+        "=== PERSON 2 KEY CHART DETAILS ===",
+        f"Ascendant: {girl_natal['ascendant']['sign']}",
+        f"Venus: {girl_natal['planets']['Venus']['sign']} "
+        f"(House {girl_natal['planets']['Venus']['house']})",
+        f"7th House Lord: {girl_natal['house_lords'].get(7, 'N/A')}",
+        "",
+        "=== ANALYSIS REQUEST ===",
+        "Provide a warm, balanced interpretation of this compatibility. Cover:",
+        "1. Overall compatibility assessment based on the total score",
+        "2. Strongest areas (highest-scoring kutas) and what they mean for the couple",
+        "3. Areas needing attention (lowest-scoring kutas) with remedies",
+        "4. If Nadi Dosha is present, explain its significance and traditional remedies",
+        "5. Brief practical advice for the couple",
+        "",
+        "Keep tone warm and constructive. Plain text, no markdown. 200-300 words.",
+    ]
+    return "\n".join(lines)
+
+
+def build_partner_prediction_prompt(chart_data: dict, darakaraka: dict,
+                                     gender: str) -> str:
+    """Build prompt for partner prediction from a single chart."""
+    natal = chart_data["natal_chart"]
+    dasha = chart_data["dasha"]
+
+    seventh_lord = natal["house_lords"].get(7, "Unknown")
+    seventh_lord_data = natal["planets"].get(seventh_lord, {})
+
+    if gender == "male":
+        sig = "Venus"
+        sig_label = "Venus (Kalatra Karaka for males)"
+    else:
+        sig = "Jupiter"
+        sig_label = "Jupiter (Kalatra Karaka for females)"
+    sig_data = natal["planets"].get(sig, {})
+
+    lines = [
+        f"Based on this natal chart, predict the nature of the ideal life partner "
+        f"for this {'male' if gender == 'male' else 'female'} native.",
+        "",
+        "=== NATAL CHART ===",
+        f"Ascendant: {natal['ascendant']['sign']}",
+        f"Moon Sign: {natal['planets']['Moon']['sign']}",
+        f"Moon Nakshatra: {natal['moon_nakshatra']['name']}",
+        "",
+        "=== 7th HOUSE ANALYSIS (Marriage House) ===",
+        f"7th House Lord: {seventh_lord}",
+        f"7th Lord Placement: {seventh_lord_data.get('sign', 'N/A')} "
+        f"(House {seventh_lord_data.get('house', 'N/A')})",
+        f"7th Lord Dignity: {seventh_lord_data.get('dignity', 'N/A')}",
+        "",
+        f"=== {sig_label} ===",
+        f"Sign: {sig_data.get('sign', 'N/A')} (House {sig_data.get('house', 'N/A')})",
+        f"Dignity: {sig_data.get('dignity', 'N/A')}",
+        f"Retrograde: {'Yes' if sig_data.get('retrograde') else 'No'}",
+        "",
+        "=== DARAKARAKA (Jaimini Spouse Significator) ===",
+        f"Planet: {darakaraka['planet']}",
+        f"Sign: {darakaraka['sign']} (House {darakaraka['house']})",
+        "",
+        f"=== CURRENT DASHA ===",
+        f"{dasha['mahadasha_lord']}-{dasha['antardasha_lord']}",
+        "",
+        "=== PREDICTION REQUEST ===",
+        "Based on the 7th house lord, its placement, the karaka planet, and the "
+        "Darakaraka, describe:",
+        "1. Physical and personality traits of the likely partner",
+        "2. How and where the native may meet their partner",
+        "3. The timing window for marriage based on current dasha",
+        "4. Strengths of the marriage and potential challenges",
+        "5. Any remedies to strengthen marriage prospects",
+        "",
+        "Keep tone warm and empowering. Plain text, no markdown. 200-300 words.",
+    ]
+    return "\n".join(lines)
+
+
 def _cache_key_hash(chart_data: dict, prediction_type: str,
                     category: str, period: str) -> str:
     """Create a hash of the input data for cache invalidation."""
@@ -258,3 +366,95 @@ def get_best_days_prediction(chart_data: dict, category: str,
         db.rollback()
 
     return narrative
+
+
+def get_compatibility_analysis(gun_milan: dict, boy_chart: dict,
+                                girl_chart: dict, db: Session,
+                                user_id: int) -> str:
+    """Get AI interpretation of gun milan results with caching."""
+    period_key = f"compat_{gun_milan['boy_nakshatra']}_{gun_milan['girl_nakshatra']}"
+    data_hash = _cache_key_hash(gun_milan, "compatibility", "love", period_key)
+
+    try:
+        cached = (
+            db.query(PredictionCache)
+            .filter_by(user_id=user_id, prediction_type="compatibility",
+                       category="love", period_key=period_key)
+            .first()
+        )
+        if cached and cached.astro_data_hash == data_hash:
+            return cached.prediction_text
+    except Exception:
+        cached = None
+
+    prompt = build_compatibility_prompt(gun_milan, boy_chart, girl_chart)
+    message = _get_client().messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=700,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = message.content[0].text
+
+    try:
+        if cached:
+            cached.prediction_text = text
+            cached.astro_data_hash = data_hash
+        else:
+            cached = PredictionCache(
+                user_id=user_id, prediction_type="compatibility",
+                category="love", period_key=period_key,
+                prediction_text=text, astro_data_hash=data_hash,
+            )
+            db.add(cached)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return text
+
+
+def get_partner_prediction(chart_data: dict, darakaraka: dict,
+                            gender: str, db: Session,
+                            user_id: int) -> str:
+    """Get AI partner prediction with caching."""
+    period_key = f"partner_{gender}_{chart_data['natal_chart']['ascendant']['sign']}"
+    data_hash = _cache_key_hash(chart_data, "partner", "love", period_key)
+
+    try:
+        cached = (
+            db.query(PredictionCache)
+            .filter_by(user_id=user_id, prediction_type="partner",
+                       category="love", period_key=period_key)
+            .first()
+        )
+        if cached and cached.astro_data_hash == data_hash:
+            return cached.prediction_text
+    except Exception:
+        cached = None
+
+    prompt = build_partner_prediction_prompt(chart_data, darakaraka, gender)
+    message = _get_client().messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=700,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = message.content[0].text
+
+    try:
+        if cached:
+            cached.prediction_text = text
+            cached.astro_data_hash = data_hash
+        else:
+            cached = PredictionCache(
+                user_id=user_id, prediction_type="partner",
+                category="love", period_key=period_key,
+                prediction_text=text, astro_data_hash=data_hash,
+            )
+            db.add(cached)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return text

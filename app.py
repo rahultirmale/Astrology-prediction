@@ -127,6 +127,22 @@ class VerifyPaymentRequest(BaseModel):
     razorpay_payment_id: str
     razorpay_signature: str
 
+class CompatibilityRequest(BaseModel):
+    date_of_birth: str
+    time_of_birth: str
+    place_of_birth: str
+    partner_date_of_birth: str
+    partner_time_of_birth: str
+    partner_place_of_birth: str
+    email: Optional[str] = None
+
+class PartnerPredictionRequest(BaseModel):
+    date_of_birth: str
+    time_of_birth: str
+    place_of_birth: str
+    gender: str  # "male" or "female"
+    email: Optional[str] = None
+
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
@@ -549,6 +565,112 @@ def get_best_days(req: BestDaysRequest, db: Session = Depends(get_db),
         "category": req.category,
         "best_days": best_days,
         "narrative": narrative,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Compatibility endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/compatibility")
+def get_compatibility(req: CompatibilityRequest, db: Session = Depends(get_db),
+                      user=Depends(get_current_user_optional)):
+    """Calculate Ashtakoot Gun Milan + optional AI interpretation (paid)."""
+    import time
+    is_paid = _check_payment(req.email or "", db)
+
+    try:
+        lat1, lon1, tz1, offset1, dob1 = _resolve_location(
+            req.place_of_birth, req.date_of_birth, req.time_of_birth
+        )
+        time.sleep(1.1)  # respect Nominatim rate limit
+        lat2, lon2, tz2, offset2, dob2 = _resolve_location(
+            req.partner_place_of_birth, req.partner_date_of_birth,
+            req.partner_time_of_birth
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, f"Location error: {str(e)[:200]}")
+
+    from astrology import generate_birth_chart, calculate_gun_milan
+
+    boy_chart = generate_birth_chart(
+        dob=dob1, tob=req.time_of_birth,
+        latitude=lat1, longitude=lon1, utc_offset=offset1,
+    )
+    girl_chart = generate_birth_chart(
+        dob=dob2, tob=req.partner_time_of_birth,
+        latitude=lat2, longitude=lon2, utc_offset=offset2,
+    )
+
+    boy_moon_lon = boy_chart["natal_chart"]["moon_longitude"]
+    girl_moon_lon = girl_chart["natal_chart"]["moon_longitude"]
+
+    gun_milan = calculate_gun_milan(boy_moon_lon, girl_moon_lon)
+
+    result = {
+        "gun_milan": gun_milan,
+        "preview": not is_paid,
+    }
+
+    if is_paid:
+        try:
+            from claude_client import get_compatibility_analysis
+            user_id = user.id if user else 0
+            narrative = get_compatibility_analysis(
+                gun_milan, boy_chart, girl_chart, db, user_id
+            )
+            result["ai_interpretation"] = narrative
+        except Exception as e:
+            result["ai_interpretation"] = f"AI analysis unavailable: {str(e)[:100]}"
+    else:
+        result["ai_interpretation"] = None
+
+    return result
+
+
+@app.post("/api/partner-prediction")
+def partner_prediction(req: PartnerPredictionRequest,
+                       db: Session = Depends(get_db),
+                       user=Depends(get_current_user_optional)):
+    """AI prediction about ideal partner — payment required."""
+    if req.gender not in ("male", "female"):
+        raise HTTPException(400, "gender must be 'male' or 'female'")
+
+    if not _check_payment(req.email or "", db):
+        raise HTTPException(
+            status_code=402,
+            detail="Payment required to unlock partner predictions",
+        )
+
+    lat, lon, tz_str, utc_offset, dob = _resolve_location(
+        req.place_of_birth, req.date_of_birth, req.time_of_birth
+    )
+
+    from astrology import generate_birth_chart, get_darakaraka
+    chart_data = generate_birth_chart(
+        dob=dob, tob=req.time_of_birth,
+        latitude=lat, longitude=lon, utc_offset=utc_offset,
+    )
+
+    darakaraka = get_darakaraka(chart_data["natal_chart"]["planets"])
+    user_id = user.id if user else 0
+
+    try:
+        from claude_client import get_partner_prediction
+        prediction = get_partner_prediction(
+            chart_data, darakaraka, req.gender, db, user_id
+        )
+    except Exception as e:
+        error_msg = str(e)
+        raise HTTPException(502, f"AI service error: {error_msg[:200]}")
+
+    return {
+        "gender": req.gender,
+        "darakaraka": darakaraka,
+        "seventh_house_lord": chart_data["natal_chart"]["house_lords"].get(7),
+        "prediction": prediction,
     }
 
 

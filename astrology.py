@@ -96,6 +96,134 @@ PLANET_WEIGHTS = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Gun Milan (Ashtakoot) compatibility tables
+# ---------------------------------------------------------------------------
+
+# Varna: Brahmin(4) > Kshatriya(3) > Vaishya(2) > Shudra(1) by rashi
+VARNA_TABLE = [
+    3,  # Aries - Kshatriya
+    2,  # Taurus - Vaishya
+    1,  # Gemini - Shudra
+    4,  # Cancer - Brahmin
+    3,  # Leo - Kshatriya
+    2,  # Virgo - Vaishya
+    1,  # Libra - Shudra
+    4,  # Scorpio - Brahmin
+    3,  # Sagittarius - Kshatriya
+    2,  # Capricorn - Vaishya
+    1,  # Aquarius - Shudra
+    4,  # Pisces - Brahmin
+]
+
+# Vashya categories: 0=Chatushpada, 1=Manava, 2=Jalachara, 3=Vanachara, 4=Keeta
+VASHYA_TABLE = [
+    0,  # Aries - Chatushpada
+    0,  # Taurus - Chatushpada
+    1,  # Gemini - Manava
+    2,  # Cancer - Jalachara
+    3,  # Leo - Vanachara
+    1,  # Virgo - Manava
+    1,  # Libra - Manava
+    4,  # Scorpio - Keeta
+    0,  # Sagittarius - Chatushpada
+    2,  # Capricorn - Jalachara
+    1,  # Aquarius - Manava
+    2,  # Pisces - Jalachara
+]
+
+# Vashya compatibility matrix [boy_vashya][girl_vashya] -> score (out of 2)
+VASHYA_SCORE = [
+    [2, 0, 0, 1, 0],  # Chatushpada vs all
+    [1, 2, 1, 0, 0],  # Manava vs all
+    [0, 1, 2, 0, 1],  # Jalachara vs all
+    [0, 0, 1, 2, 1],  # Vanachara vs all
+    [0, 1, 0, 0, 2],  # Keeta vs all
+]
+
+# Yoni: each nakshatra (0-26) mapped to animal index
+# Animals: 0=Horse, 1=Elephant, 2=Sheep, 3=Serpent, 4=Dog, 5=Cat,
+#          6=Rat, 7=Cow, 8=Buffalo, 9=Tiger, 10=Deer, 11=Monkey,
+#          12=Mongoose, 13=Lion
+YONI_ANIMAL = [
+    0,   # Ashwini - Horse
+    1,   # Bharani - Elephant
+    2,   # Krittika - Sheep
+    3,   # Rohini - Serpent
+    3,   # Mrigashira - Serpent
+    4,   # Ardra - Dog
+    5,   # Punarvasu - Cat
+    2,   # Pushya - Sheep
+    5,   # Ashlesha - Cat
+    6,   # Magha - Rat
+    6,   # Purva Phalguni - Rat
+    7,   # Uttara Phalguni - Cow
+    8,   # Hasta - Buffalo
+    9,   # Chitra - Tiger
+    8,   # Swati - Buffalo
+    9,   # Vishakha - Tiger
+    10,  # Anuradha - Deer
+    10,  # Jyeshtha - Deer
+    4,   # Moola - Dog
+    11,  # Purva Ashadha - Monkey
+    12,  # Uttara Ashadha - Mongoose
+    11,  # Shravana - Monkey
+    13,  # Dhanishta - Lion
+    0,   # Shatabhisha - Horse
+    13,  # Purva Bhadrapada - Lion
+    7,   # Uttara Bhadrapada - Cow
+    1,   # Revati - Elephant
+]
+
+# Yoni enemy pairs: mutual enemies scoring 0
+YONI_ENEMIES = {
+    frozenset({0, 8}),    # Horse - Buffalo
+    frozenset({1, 13}),   # Elephant - Lion
+    frozenset({2, 11}),   # Sheep - Monkey
+    frozenset({3, 12}),   # Serpent - Mongoose
+    frozenset({4, 10}),   # Dog - Deer
+    frozenset({5, 6}),    # Cat - Rat
+    frozenset({7, 9}),    # Cow - Tiger
+}
+
+# Gana: each nakshatra mapped to 0=Deva, 1=Manushya, 2=Rakshasa
+GANA_TABLE = [
+    0, 1, 2,   # Ashwini(Deva), Bharani(Manushya), Krittika(Rakshasa)
+    0, 0, 1,   # Rohini(Deva), Mrigashira(Deva), Ardra(Manushya)
+    0, 0, 2,   # Punarvasu(Deva), Pushya(Deva), Ashlesha(Rakshasa)
+    2, 1, 0,   # Magha(Rakshasa), P.Phalguni(Manushya), U.Phalguni(Deva)
+    0, 2, 0,   # Hasta(Deva), Chitra(Rakshasa), Swati(Deva)
+    2, 0, 2,   # Vishakha(Rakshasa), Anuradha(Deva), Jyeshtha(Rakshasa)
+    2, 1, 0,   # Moola(Rakshasa), P.Ashadha(Manushya), U.Ashadha(Deva)
+    0, 2, 2,   # Shravana(Deva), Dhanishta(Rakshasa), Shatabhisha(Rakshasa)
+    1, 1, 0,   # P.Bhadrapada(Manushya), U.Bhadrapada(Manushya), Revati(Deva)
+]
+
+# Gana scoring matrix [boy_gana][girl_gana] -> score out of 6
+GANA_SCORE = [
+    [6, 5, 1],  # Deva boy
+    [5, 6, 0],  # Manushya boy
+    [1, 0, 6],  # Rakshasa boy
+]
+
+# Nadi: each nakshatra mapped to 0=Aadi(Vata), 1=Madhya(Pitta), 2=Antya(Kapha)
+NADI_TABLE = [
+    0, 1, 2, 2, 1, 0, 0, 1, 2,   # Ashwini..Ashlesha
+    0, 1, 2, 2, 1, 0, 0, 1, 2,   # Magha..Jyeshtha
+    0, 1, 2, 2, 1, 0, 0, 1, 2,   # Moola..Revati
+]
+
+# Planet natural friendship: 2=Friend, 1=Neutral, 0=Enemy
+PLANET_FRIENDSHIP = {
+    "Sun":     {"Moon": 2, "Mars": 2, "Jupiter": 2, "Venus": 0, "Saturn": 0, "Mercury": 1},
+    "Moon":    {"Sun": 2, "Mars": 1, "Jupiter": 1, "Venus": 1, "Saturn": 1, "Mercury": 0},
+    "Mars":    {"Sun": 2, "Moon": 2, "Jupiter": 2, "Venus": 1, "Saturn": 0, "Mercury": 0},
+    "Mercury": {"Sun": 2, "Moon": 0, "Mars": 1, "Jupiter": 1, "Venus": 2, "Saturn": 1},
+    "Jupiter": {"Sun": 2, "Moon": 2, "Mars": 2, "Venus": 0, "Saturn": 1, "Mercury": 0},
+    "Venus":   {"Sun": 0, "Moon": 1, "Mars": 1, "Jupiter": 1, "Saturn": 2, "Mercury": 2},
+    "Saturn":  {"Sun": 0, "Moon": 0, "Mars": 0, "Jupiter": 1, "Venus": 2, "Mercury": 2},
+}
+
 # Dignity tables (sign index 0-11, Aries=0 .. Pisces=11)
 EXALTATION = {
     "Sun": 0, "Moon": 1, "Mars": 9, "Mercury": 5,
@@ -546,6 +674,157 @@ def detect_yogas(planets: dict, asc_sign_idx: int) -> list:
 
 
 # ---------------------------------------------------------------------------
+# Gun Milan (Ashtakoot) Compatibility
+# ---------------------------------------------------------------------------
+
+def calculate_gun_milan(boy_moon_lon: float, girl_moon_lon: float) -> dict:
+    """Calculate Ashtakoot Gun Milan (36-point compatibility system).
+
+    Args:
+        boy_moon_lon: Sidereal Moon longitude of person 1 (0-360)
+        girl_moon_lon: Sidereal Moon longitude of person 2 (0-360)
+
+    Returns:
+        dict with total_score, max_score, percentage, kutas (8 components),
+        nadi_dosha flag, verdict, and both nakshatras/rashis.
+    """
+    boy_nak = get_nakshatra(boy_moon_lon)
+    girl_nak = get_nakshatra(girl_moon_lon)
+    boy_rashi = int(boy_moon_lon // 30) % 12
+    girl_rashi = int(girl_moon_lon // 30) % 12
+    boy_nak_idx = boy_nak["index"]
+    girl_nak_idx = girl_nak["index"]
+
+    kutas = []
+
+    # 1. Varna (max 1) — spiritual compatibility
+    boy_varna = VARNA_TABLE[boy_rashi]
+    girl_varna = VARNA_TABLE[girl_rashi]
+    varna_score = 1 if boy_varna >= girl_varna else 0
+    kutas.append({"name": "Varna", "max": 1, "score": varna_score,
+                  "description": "Spiritual compatibility"})
+
+    # 2. Vashya (max 2) — mutual attraction & dominance
+    boy_vashya = VASHYA_TABLE[boy_rashi]
+    girl_vashya = VASHYA_TABLE[girl_rashi]
+    vashya_score = VASHYA_SCORE[boy_vashya][girl_vashya]
+    kutas.append({"name": "Vashya", "max": 2, "score": vashya_score,
+                  "description": "Mutual attraction & dominance"})
+
+    # 3. Tara (max 3) — destiny & luck compatibility
+    tara_count = ((boy_nak_idx - girl_nak_idx) % 27) + 1
+    tara_remainder = tara_count % 9
+    fwd_good = tara_remainder in (0, 2, 4, 6, 8)
+    tara_count_rev = ((girl_nak_idx - boy_nak_idx) % 27) + 1
+    tara_remainder_rev = tara_count_rev % 9
+    rev_good = tara_remainder_rev in (0, 2, 4, 6, 8)
+    if fwd_good and rev_good:
+        tara_score = 3
+    elif fwd_good or rev_good:
+        tara_score = 1.5
+    else:
+        tara_score = 0
+    kutas.append({"name": "Tara", "max": 3, "score": tara_score,
+                  "description": "Destiny & luck compatibility"})
+
+    # 4. Yoni (max 4) — physical & sexual compatibility
+    boy_animal = YONI_ANIMAL[boy_nak_idx]
+    girl_animal = YONI_ANIMAL[girl_nak_idx]
+    if boy_animal == girl_animal:
+        yoni_score = 4
+    elif frozenset({boy_animal, girl_animal}) in YONI_ENEMIES:
+        yoni_score = 0
+    else:
+        yoni_score = 2
+    kutas.append({"name": "Yoni", "max": 4, "score": yoni_score,
+                  "description": "Physical & sexual compatibility"})
+
+    # 5. Graha Maitri (max 5) — mental compatibility & friendship
+    boy_lord = SIGN_LORDS[boy_rashi]
+    girl_lord = SIGN_LORDS[girl_rashi]
+    if boy_lord == girl_lord:
+        maitri_score = 5
+    else:
+        b2g = PLANET_FRIENDSHIP.get(boy_lord, {}).get(girl_lord, 1)
+        g2b = PLANET_FRIENDSHIP.get(girl_lord, {}).get(boy_lord, 1)
+        total_f = b2g + g2b
+        if total_f >= 4:
+            maitri_score = 5
+        elif total_f == 3:
+            maitri_score = 4
+        elif total_f == 2:
+            maitri_score = 3
+        elif total_f == 1:
+            maitri_score = 1
+        else:
+            maitri_score = 0
+    kutas.append({"name": "Graha Maitri", "max": 5, "score": maitri_score,
+                  "description": "Mental compatibility & friendship"})
+
+    # 6. Gana (max 6) — temperament & behavior
+    boy_gana = GANA_TABLE[boy_nak_idx]
+    girl_gana = GANA_TABLE[girl_nak_idx]
+    gana_score = GANA_SCORE[boy_gana][girl_gana]
+    kutas.append({"name": "Gana", "max": 6, "score": gana_score,
+                  "description": "Temperament & behavior"})
+
+    # 7. Bhakoot (max 7) — health, wealth & family happiness
+    diff = (boy_rashi - girl_rashi) % 12
+    rev_diff = (girl_rashi - boy_rashi) % 12
+    bad_bhakoot = {(1, 11), (11, 1), (5, 7), (7, 5)}
+    bhakoot_score = 0 if (diff, rev_diff) in bad_bhakoot else 7
+    kutas.append({"name": "Bhakoot", "max": 7, "score": bhakoot_score,
+                  "description": "Health, wealth & family happiness"})
+
+    # 8. Nadi (max 8) — health & gene compatibility
+    boy_nadi = NADI_TABLE[boy_nak_idx]
+    girl_nadi = NADI_TABLE[girl_nak_idx]
+    nadi_score = 0 if boy_nadi == girl_nadi else 8
+    nadi_dosha = (boy_nadi == girl_nadi)
+    kutas.append({"name": "Nadi", "max": 8, "score": nadi_score,
+                  "description": "Health & gene compatibility"})
+
+    total = sum(k["score"] for k in kutas)
+
+    if total >= 28:
+        verdict = "Excellent Match"
+    elif total >= 21:
+        verdict = "Good Match"
+    elif total >= 18:
+        verdict = "Average Match - proceed with caution"
+    else:
+        verdict = "Below Average - seek remedies before proceeding"
+
+    return {
+        "total_score": total,
+        "max_score": 36,
+        "percentage": round((total / 36) * 100, 1),
+        "kutas": kutas,
+        "nadi_dosha": nadi_dosha,
+        "verdict": verdict,
+        "boy_nakshatra": boy_nak["name"],
+        "girl_nakshatra": girl_nak["name"],
+        "boy_rashi": SIGNS[boy_rashi],
+        "girl_rashi": SIGNS[girl_rashi],
+    }
+
+
+def get_darakaraka(planets: dict) -> dict:
+    """Find the Darakaraka (planet with lowest degree, excluding Rahu/Ketu)."""
+    candidates = {
+        name: data for name, data in planets.items()
+        if name not in ("Rahu", "Ketu")
+    }
+    dk = min(candidates.items(), key=lambda x: x[1]["degree"])
+    return {
+        "planet": dk[0],
+        "sign": dk[1]["sign"],
+        "house": dk[1]["house"],
+        "degree": dk[1]["degree"],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Master chart generation
 # ---------------------------------------------------------------------------
 
@@ -622,6 +901,7 @@ def generate_birth_chart(dob: date, tob: str, latitude: float,
                 "name": nakshatra["name"],
                 "ruling_planet": nakshatra["ruling_planet"],
             },
+            "moon_longitude": moon_lon,
         },
         "dasha": current_dasha,
         "dasha_timeline": dasha_timeline,

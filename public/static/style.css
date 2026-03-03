@@ -224,3 +224,47 @@ select option {
     color: #fbbf24;
     white-space: nowrap;
 }
+
+/* ---- Gun Milan Score Circle ---- */
+.compat-score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(236, 72, 153, 0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(236, 72, 153, 0.05);
+    transition: border-color 0.3s ease;
+}
+
+/* ---- Kuta Score Card ---- */
+.kuta-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    transition: border-color 0.2s ease;
+}
+.kuta-card:hover {
+    border-color: rgba(236, 72, 153, 0.3);
+}
+
+/* ---- Kuta Progress Bar ---- */
+.kuta-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+.kuta-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease-out;
+}
+
+/* ---- Compatibility Tab ---- */
+.compat-tab {
+    transition: all 0.2s ease;
+}
