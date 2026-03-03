@@ -2,7 +2,9 @@
 Vedic Astrology Prediction App - FastAPI Application
 """
 
+import logging
 import os
+import traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -15,7 +17,7 @@ _BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(_BASE_DIR / ".env", override=True)
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -27,6 +29,8 @@ from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 
 from database import PredictionCache, User, get_db, init_db
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -218,20 +222,53 @@ def get_me(user=Depends(get_current_user_optional)):
     }
 
 # ---------------------------------------------------------------------------
+# Health check / debug endpoint
+# ---------------------------------------------------------------------------
+
+@app.get("/api/health")
+def health_check():
+    """Quick health check — verifies imports work on Vercel."""
+    checks = {}
+    try:
+        from astrology import generate_birth_chart
+        checks["astrology"] = "ok"
+    except Exception as e:
+        checks["astrology"] = str(e)
+    try:
+        from claude_client import _get_client
+        checks["claude_client"] = "ok"
+    except Exception as e:
+        checks["claude_client"] = str(e)
+    try:
+        from database import init_db
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = str(e)
+    checks["VERCEL"] = os.getenv("VERCEL", "not set")
+    checks["ANTHROPIC_KEY_SET"] = "yes" if os.getenv("ANTHROPIC_API_KEY") else "no"
+    return checks
+
+# ---------------------------------------------------------------------------
 # Anonymous prediction endpoints (NO auth required)
 # ---------------------------------------------------------------------------
 
 @app.post("/api/chart")
 def get_chart(req: ChartRequest):
     """Get natal chart data — no auth required."""
-    lat, lon, tz_str, utc_offset, dob = _resolve_location(
-        req.place_of_birth, req.date_of_birth, req.time_of_birth
-    )
-    from astrology import generate_birth_chart
-    return generate_birth_chart(
-        dob=dob, tob=req.time_of_birth,
-        latitude=lat, longitude=lon, utc_offset=utc_offset,
-    )
+    try:
+        lat, lon, tz_str, utc_offset, dob = _resolve_location(
+            req.place_of_birth, req.date_of_birth, req.time_of_birth
+        )
+        from astrology import generate_birth_chart
+        return generate_birth_chart(
+            dob=dob, tob=req.time_of_birth,
+            latitude=lat, longitude=lon, utc_offset=utc_offset,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chart error: {traceback.format_exc()}")
+        raise HTTPException(500, f"Chart calculation failed: {str(e)[:300]}")
 
 
 @app.post("/api/predict")
