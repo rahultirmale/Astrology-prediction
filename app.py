@@ -5,6 +5,7 @@ Vedic Astrology Prediction App - FastAPI Application
 import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 import pytz
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 # Load .env from the same directory as this file (works regardless of CWD)
 _BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(_BASE_DIR / ".env", override=True)
+
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -20,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from geopy.geocoders import Nominatim
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 
@@ -34,8 +36,6 @@ IS_VERCEL = os.getenv("VERCEL", "") == "1"
 
 app = FastAPI(title="Jyotish AI - Vedic Astrology Predictions")
 
-# Local dev: serve static files and templates via FastAPI
-# Vercel: these are served directly by Vercel from public/
 if not IS_VERCEL:
     os.makedirs("static", exist_ok=True)
     os.makedirs("templates", exist_ok=True)
@@ -77,6 +77,25 @@ class BirthDetailsRequest(BaseModel):
     time_of_birth: str   # "HH:MM"
     place_of_birth: str  # "Mumbai, India"
 
+class PredictRequest(BaseModel):
+    date_of_birth: str
+    time_of_birth: str
+    place_of_birth: str
+    prediction_type: str  # daily / monthly / yearly
+    category: str         # career / health / love
+
+class BestDaysRequest(BaseModel):
+    date_of_birth: str
+    time_of_birth: str
+    place_of_birth: str
+    category: str
+    month: Optional[str] = None  # "YYYY-MM", defaults to current
+
+class ChartRequest(BaseModel):
+    date_of_birth: str
+    time_of_birth: str
+    place_of_birth: str
+
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
@@ -90,21 +109,46 @@ def create_token(user_id: int, email: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme),
-                     db: Session = Depends(get_db)) -> User:
+def get_current_user_optional(token: str = Depends(oauth2_scheme),
+                              db: Session = Depends(get_db)):
+    """Returns User if token valid, else None. Never raises."""
     if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        return None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("user_id")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            return None
+        return db.query(User).filter(User.id == user_id).first()
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+        return None
+
+# ---------------------------------------------------------------------------
+# Geocoding helper (shared by auth and anonymous endpoints)
+# ---------------------------------------------------------------------------
+
+def _resolve_location(place: str, dob_str: str, tob_str: str):
+    """Geocode a place and resolve timezone. Returns (lat, lon, tz, offset)."""
+    location = geolocator.geocode(place)
+    if not location:
+        raise HTTPException(status_code=400,
+                            detail=f"Could not find location: {place}")
+    lat = location.latitude
+    lon = location.longitude
+
+    timezone_str = tf.timezone_at(lat=lat, lng=lon)
+    if not timezone_str:
+        raise HTTPException(status_code=400,
+                            detail="Could not determine timezone for this location")
+
+    dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+    hour, minute = map(int, tob_str.split(":"))
+    tz = pytz.timezone(timezone_str)
+    birth_dt = datetime(dob.year, dob.month, dob.day, hour, minute)
+    localized = tz.localize(birth_dt)
+    utc_offset = localized.utcoffset().total_seconds() / 3600
+
+    return lat, lon, timezone_str, utc_offset, dob
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -115,7 +159,7 @@ def startup():
     init_db()
 
 # ---------------------------------------------------------------------------
-# Page routes (only needed for local dev; Vercel serves from public/)
+# Page routes (local dev only; Vercel serves from public/)
 # ---------------------------------------------------------------------------
 
 if not IS_VERCEL:
@@ -123,12 +167,8 @@ if not IS_VERCEL:
     async def index_page(request: Request):
         return templates.TemplateResponse("index.html", {"request": request})
 
-    @app.get("/dashboard", response_class=HTMLResponse)
-    async def dashboard_page(request: Request):
-        return templates.TemplateResponse("dashboard.html", {"request": request})
-
 # ---------------------------------------------------------------------------
-# Auth endpoints
+# Auth endpoints (optional — for users who want to save their data)
 # ---------------------------------------------------------------------------
 
 @app.post("/api/register")
@@ -154,186 +194,158 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     if not user or not pwd_context.verify(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_token(user.id, user.email)
-    return {"access_token": token, "token_type": "bearer"}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "full_name": user.full_name,
+            "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
+            "time_of_birth": user.time_of_birth,
+            "place_of_birth": user.place_of_birth,
+        },
+    }
 
-# ---------------------------------------------------------------------------
-# User profile
-# ---------------------------------------------------------------------------
 
 @app.get("/api/me")
-def get_me(user: User = Depends(get_current_user)):
+def get_me(user=Depends(get_current_user_optional)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return {
-        "id": user.id,
-        "email": user.email,
         "full_name": user.full_name,
-        "has_birth_details": user.date_of_birth is not None,
         "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
         "time_of_birth": user.time_of_birth,
         "place_of_birth": user.place_of_birth,
     }
 
 # ---------------------------------------------------------------------------
-# Birth details
+# Anonymous prediction endpoints (NO auth required)
 # ---------------------------------------------------------------------------
 
-@app.put("/api/birth-details")
-def save_birth_details(req: BirthDetailsRequest,
-                       user: User = Depends(get_current_user),
-                       db: Session = Depends(get_db)):
-    # Geocode the place
-    location = geolocator.geocode(req.place_of_birth)
-    if not location:
-        raise HTTPException(status_code=400,
-                            detail=f"Could not find location: {req.place_of_birth}")
-
-    lat = location.latitude
-    lon = location.longitude
-
-    # Resolve timezone
-    timezone_str = tf.timezone_at(lat=lat, lng=lon)
-    if not timezone_str:
-        raise HTTPException(status_code=400,
-                            detail="Could not determine timezone for this location")
-
-    # Calculate UTC offset for the birth date (handles historical DST)
-    dob = datetime.strptime(req.date_of_birth, "%Y-%m-%d").date()
-    hour, minute = map(int, req.time_of_birth.split(":"))
-    tz = pytz.timezone(timezone_str)
-    birth_dt = datetime(dob.year, dob.month, dob.day, hour, minute)
-    localized = tz.localize(birth_dt)
-    utc_offset = localized.utcoffset().total_seconds() / 3600
-
-    # Update user record
-    user.date_of_birth = dob
-    user.time_of_birth = req.time_of_birth
-    user.place_of_birth = req.place_of_birth
-    user.birth_latitude = lat
-    user.birth_longitude = lon
-    user.birth_timezone = timezone_str
-    user.birth_utc_offset = utc_offset
-
-    # Invalidate prediction cache
-    db.query(PredictionCache).filter(PredictionCache.user_id == user.id).delete()
-    db.commit()
-
-    return {
-        "status": "ok",
-        "resolved_location": {
-            "lat": round(lat, 4),
-            "lon": round(lon, 4),
-            "timezone": timezone_str,
-            "utc_offset": utc_offset,
-        },
-    }
-
-# ---------------------------------------------------------------------------
-# Predictions
-# ---------------------------------------------------------------------------
-
-def _ensure_birth_details(user: User):
-    if not user.date_of_birth:
-        raise HTTPException(
-            status_code=400,
-            detail="Please save your birth details first",
-        )
-
-
-def _get_chart(user: User) -> dict:
+@app.post("/api/chart")
+def get_chart(req: ChartRequest):
+    """Get natal chart data — no auth required."""
+    lat, lon, tz_str, utc_offset, dob = _resolve_location(
+        req.place_of_birth, req.date_of_birth, req.time_of_birth
+    )
     from astrology import generate_birth_chart
     return generate_birth_chart(
-        dob=user.date_of_birth,
-        tob=user.time_of_birth,
-        latitude=user.birth_latitude,
-        longitude=user.birth_longitude,
-        utc_offset=user.birth_utc_offset,
+        dob=dob, tob=req.time_of_birth,
+        latitude=lat, longitude=lon, utc_offset=utc_offset,
     )
 
 
-@app.get("/api/predictions")
-def get_predictions(
-    type: str = Query(..., pattern="^(daily|monthly|yearly)$"),
-    category: str = Query(..., pattern="^(career|health|love)$"),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    _ensure_birth_details(user)
-    chart_data = _get_chart(user)
+@app.post("/api/predict")
+def predict(req: PredictRequest, db: Session = Depends(get_db),
+            user=Depends(get_current_user_optional)):
+    """Get a prediction for one category — no auth required."""
+    if req.prediction_type not in ("daily", "monthly", "yearly"):
+        raise HTTPException(400, "type must be daily, monthly, or yearly")
+    if req.category not in ("career", "health", "love"):
+        raise HTTPException(400, "category must be career, health, or love")
+
+    lat, lon, tz_str, utc_offset, dob = _resolve_location(
+        req.place_of_birth, req.date_of_birth, req.time_of_birth
+    )
+
+    from astrology import generate_birth_chart
+    chart_data = generate_birth_chart(
+        dob=dob, tob=req.time_of_birth,
+        latitude=lat, longitude=lon, utc_offset=utc_offset,
+    )
 
     today = date.today()
-    if type == "daily":
+    if req.prediction_type == "daily":
         target_period = today.isoformat()
-    elif type == "monthly":
+    elif req.prediction_type == "monthly":
         target_period = today.strftime("%Y-%m")
     else:
         target_period = str(today.year)
 
+    # If logged in, use cache; otherwise call Claude directly
+    user_id = user.id if user else 0
+
+    # Save birth details for logged-in users
+    if user and not user.date_of_birth:
+        user.date_of_birth = dob
+        user.time_of_birth = req.time_of_birth
+        user.place_of_birth = req.place_of_birth
+        user.birth_latitude = lat
+        user.birth_longitude = lon
+        user.birth_timezone = tz_str
+        user.birth_utc_offset = utc_offset
+        db.commit()
+
     try:
         from claude_client import get_prediction
-        prediction = get_prediction(chart_data, type, category, target_period, db, user.id)
+        prediction = get_prediction(
+            chart_data, req.prediction_type, req.category,
+            target_period, db, user_id,
+        )
     except Exception as e:
         error_msg = str(e)
         if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
-            raise HTTPException(status_code=502, detail="AI service authentication failed. Check your API key.")
+            raise HTTPException(502, "AI service authentication failed. Check API key.")
         elif "rate" in error_msg.lower():
-            raise HTTPException(status_code=429, detail="AI service rate limit reached. Please wait a moment and try again.")
+            raise HTTPException(429, "Rate limit reached. Please wait and try again.")
         else:
-            raise HTTPException(status_code=502, detail=f"AI service error: {error_msg[:200]}")
+            raise HTTPException(502, f"AI service error: {error_msg[:200]}")
 
     return {
-        "prediction_type": type,
-        "category": category,
+        "prediction_type": req.prediction_type,
+        "category": req.category,
         "period": target_period,
         "prediction": prediction,
     }
 
 
-@app.get("/api/best-days")
-def get_best_days(
-    category: str = Query(..., pattern="^(career|health|love)$"),
-    month: str = Query(None),  # "YYYY-MM" format, defaults to current month
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    _ensure_birth_details(user)
-    chart_data = _get_chart(user)
+@app.post("/api/best-days")
+def get_best_days(req: BestDaysRequest, db: Session = Depends(get_db),
+                  user=Depends(get_current_user_optional)):
+    """Get best days of the month — no auth required."""
+    if req.category not in ("career", "health", "love"):
+        raise HTTPException(400, "category must be career, health, or love")
 
-    if month:
-        year, mon = map(int, month.split("-"))
+    lat, lon, tz_str, utc_offset, dob = _resolve_location(
+        req.place_of_birth, req.date_of_birth, req.time_of_birth
+    )
+
+    from astrology import generate_birth_chart, calculate_best_days, SIGNS
+    chart_data = generate_birth_chart(
+        dob=dob, tob=req.time_of_birth,
+        latitude=lat, longitude=lon, utc_offset=utc_offset,
+    )
+
+    if req.month:
+        year, mon = map(int, req.month.split("-"))
     else:
         today = date.today()
         year, mon = today.year, today.month
-        month = today.strftime("%Y-%m")
+        req.month = today.strftime("%Y-%m")
 
-    from astrology import calculate_best_days, SIGNS
     moon_sign = chart_data["natal_chart"]["planets"]["Moon"]["sign"]
     natal_moon_idx = SIGNS.index(moon_sign)
+    best_days = calculate_best_days(natal_moon_idx, year, mon, req.category)
 
-    best_days = calculate_best_days(natal_moon_idx, year, mon, category)
+    user_id = user.id if user else 0
 
     try:
         from claude_client import get_best_days_prediction
         narrative = get_best_days_prediction(
-            chart_data, category, best_days, month, db, user.id
+            chart_data, req.category, best_days, req.month, db, user_id,
         )
     except Exception as e:
         error_msg = str(e)
         if "authentication" in error_msg.lower() or "api key" in error_msg.lower():
-            raise HTTPException(status_code=502, detail="AI service authentication failed. Check your API key.")
+            raise HTTPException(502, "AI service authentication failed. Check API key.")
         else:
-            raise HTTPException(status_code=502, detail=f"AI service error: {error_msg[:200]}")
+            raise HTTPException(502, f"AI service error: {error_msg[:200]}")
 
     return {
-        "month": month,
-        "category": category,
+        "month": req.month,
+        "category": req.category,
         "best_days": best_days,
         "narrative": narrative,
     }
-
-
-@app.get("/api/chart-summary")
-def get_chart_summary(user: User = Depends(get_current_user)):
-    _ensure_birth_details(user)
-    return _get_chart(user)
 
 
 # ---------------------------------------------------------------------------

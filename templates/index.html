@@ -5,215 +5,227 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jyotish AI - Vedic Astrology Predictions</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 font-['Inter'] text-white">
 
-    <!-- Stars background -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="stars"></div>
-    </div>
+    <div class="fixed inset-0 overflow-hidden pointer-events-none"><div class="stars"></div></div>
 
-    <div class="relative min-h-screen flex items-center justify-center px-4">
-        <div class="w-full max-w-md">
+    <div class="relative min-h-screen">
 
-            <!-- Logo / Header -->
-            <div class="text-center mb-8">
-                <div class="text-5xl mb-3">&#9790;</div>
-                <h1 class="text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-                    Jyotish AI
-                </h1>
-                <p class="text-gray-400 mt-2">Vedic Astrology Powered by AI</p>
-            </div>
-
-            <!-- Auth Card -->
-            <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
-
-                <!-- Tabs -->
-                <div class="flex mb-6 bg-white/5 rounded-lg p-1">
-                    <button id="tab-login" onclick="switchTab('login')"
-                            class="flex-1 py-2.5 text-sm font-medium rounded-md transition-all
-                                   bg-amber-500/20 text-amber-400">
-                        Login
-                    </button>
-                    <button id="tab-register" onclick="switchTab('register')"
-                            class="flex-1 py-2.5 text-sm font-medium rounded-md transition-all
-                                   text-gray-400 hover:text-white">
-                        Register
+        <!-- Header -->
+        <header class="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+            <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+                    <span class="text-2xl">&#9790;</span>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                        Jyotish AI
+                    </h1>
+                </div>
+                <!-- Login toggle -->
+                <div id="auth-area">
+                    <button onclick="toggleLogin()" id="login-toggle-btn"
+                            class="text-sm text-gray-400 hover:text-amber-400 border border-white/10
+                                   px-4 py-1.5 rounded-lg hover:bg-white/5 transition-all">
+                        &#128274; Login / Save My Data
                     </button>
                 </div>
-
-                <!-- Error message -->
-                <div id="auth-error" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
-
-                <!-- Login Form -->
-                <form id="login-form" onsubmit="handleLogin(event)">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1.5">Email</label>
-                            <input type="email" id="login-email" required
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg
-                                          text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50
-                                          transition-colors"
-                                   placeholder="your@email.com">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1.5">Password</label>
-                            <input type="password" id="login-password" required
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg
-                                          text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50
-                                          transition-colors"
-                                   placeholder="Enter your password">
-                        </div>
-                        <button type="submit" id="login-btn"
-                                class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500
-                                       hover:from-amber-400 hover:to-orange-400 text-white font-semibold
-                                       rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]">
-                            Login
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Register Form -->
-                <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1.5">Full Name</label>
-                            <input type="text" id="reg-name" required
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg
-                                          text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50
-                                          transition-colors"
-                                   placeholder="Your full name">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1.5">Email</label>
-                            <input type="email" id="reg-email" required
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg
-                                          text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50
-                                          transition-colors"
-                                   placeholder="your@email.com">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1.5">Password</label>
-                            <input type="password" id="reg-password" required minlength="6"
-                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg
-                                          text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50
-                                          transition-colors"
-                                   placeholder="Min 6 characters">
-                        </div>
-                        <button type="submit" id="reg-btn"
-                                class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500
-                                       hover:from-amber-400 hover:to-orange-400 text-white font-semibold
-                                       rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]">
-                            Create Account
-                        </button>
-                    </div>
-                </form>
+                <!-- Logged-in state -->
+                <div id="user-area" class="hidden items-center gap-3">
+                    <span class="text-xs text-gray-500">Logged in as</span>
+                    <span id="user-name" class="text-sm text-amber-400 font-medium"></span>
+                    <button onclick="logout()"
+                            class="text-xs text-gray-400 hover:text-white border border-white/10
+                                   px-2 py-1 rounded hover:bg-white/5 transition-all">
+                        Logout
+                    </button>
+                </div>
             </div>
+        </header>
 
-            <p class="text-center text-gray-500 text-xs mt-6">
-                Personalized Vedic astrology predictions using precise planetary calculations
-            </p>
+        <!-- Login/Register Panel (slides down) -->
+        <div id="login-panel" class="hidden border-b border-white/10 bg-black/30 backdrop-blur-sm">
+            <div class="max-w-md mx-auto px-4 py-6">
+                <div class="flex gap-4 mb-4">
+                    <button onclick="switchAuthTab('login')" id="auth-tab-login"
+                            class="text-sm font-medium text-amber-400 border-b-2 border-amber-400 pb-1">Login</button>
+                    <button onclick="switchAuthTab('register')" id="auth-tab-register"
+                            class="text-sm font-medium text-gray-400 border-b-2 border-transparent pb-1">Register</button>
+                </div>
+                <div id="auth-error" class="hidden mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs"></div>
+                <form id="form-login" onsubmit="handleLogin(event)" class="space-y-3">
+                    <input type="email" id="login-email" required placeholder="Email"
+                           class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                    <input type="password" id="login-password" required placeholder="Password"
+                           class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                    <button type="submit" class="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-lg">Login</button>
+                </form>
+                <form id="form-register" class="hidden space-y-3" onsubmit="handleRegister(event)">
+                    <input type="text" id="reg-name" required placeholder="Full Name"
+                           class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                    <input type="email" id="reg-email" required placeholder="Email"
+                           class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                    <input type="password" id="reg-password" required minlength="6" placeholder="Password (min 6 chars)"
+                           class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                    <button type="submit" class="w-full py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-lg">Create Account</button>
+                </form>
+                <p class="text-gray-500 text-xs mt-3 text-center">Login is optional — save your details to skip the form next time</p>
+            </div>
         </div>
+
+        <main class="max-w-6xl mx-auto px-4 py-8">
+
+            <!-- Hero + Birth Details Form -->
+            <section id="hero-section" class="mb-10">
+                <div class="text-center mb-8">
+                    <div class="text-5xl mb-3">&#9790;</div>
+                    <h2 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent mb-2">
+                        Your Vedic Astrology Reading
+                    </h2>
+                    <p class="text-gray-400">Enter your birth details for personalized AI-powered predictions</p>
+                </div>
+
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 max-w-2xl mx-auto">
+                    <div id="birth-error" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"></div>
+                    <form onsubmit="getReading(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1.5">Date of Birth</label>
+                                <input type="date" id="dob" required
+                                       class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-amber-500/50 transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1.5">Time of Birth</label>
+                                <input type="time" id="tob" required
+                                       class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-amber-500/50 transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1.5">Place of Birth</label>
+                                <input type="text" id="pob" required placeholder="e.g., Mumbai, India"
+                                       class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-amber-500/50 transition-colors">
+                            </div>
+                        </div>
+                        <button type="submit" id="get-reading-btn"
+                                class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500
+                                       hover:from-amber-400 hover:to-orange-400 text-white font-semibold
+                                       rounded-lg transition-all transform hover:scale-[1.01] active:scale-[0.99] text-lg">
+                            &#9733; Get My Reading
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Chart Summary -->
+            <section id="chart-summary" class="hidden mb-8">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Your Natal Chart</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div class="bg-white/5 rounded-lg p-3">
+                            <div class="text-gray-400 text-xs mb-1">Ascendant (Lagna)</div>
+                            <div id="summary-asc" class="font-semibold text-white">--</div>
+                        </div>
+                        <div class="bg-white/5 rounded-lg p-3">
+                            <div class="text-gray-400 text-xs mb-1">Moon Sign (Rashi)</div>
+                            <div id="summary-moon" class="font-semibold text-white">--</div>
+                        </div>
+                        <div class="bg-white/5 rounded-lg p-3">
+                            <div class="text-gray-400 text-xs mb-1">Nakshatra</div>
+                            <div id="summary-nak" class="font-semibold text-white">--</div>
+                        </div>
+                        <div class="bg-white/5 rounded-lg p-3">
+                            <div class="text-gray-400 text-xs mb-1">Current Dasha</div>
+                            <div id="summary-dasha" class="font-semibold text-white">--</div>
+                        </div>
+                    </div>
+                    <div id="sade-sati-banner" class="hidden mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg text-orange-400 text-sm">
+                        <span class="font-semibold">Sade Sati Active:</span> <span id="sade-sati-text"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Predictions -->
+            <section id="predictions-section" class="hidden">
+                <div class="flex gap-2 mb-6">
+                    <button onclick="switchPeriod('daily')" id="period-daily"
+                            class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all bg-amber-500/20 text-amber-400 border border-amber-500/30">Daily</button>
+                    <button onclick="switchPeriod('monthly')" id="period-monthly"
+                            class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Monthly</button>
+                    <button onclick="switchPeriod('yearly')" id="period-yearly"
+                            class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Yearly</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg">&#128188;</div>
+                            <h3 class="font-semibold text-blue-400">Career</h3>
+                        </div>
+                        <div id="pred-career" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                    </div>
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-lg">&#128154;</div>
+                            <h3 class="font-semibold text-green-400">Health</h3>
+                        </div>
+                        <div id="pred-health" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                    </div>
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">&#10084;&#65039;</div>
+                            <h3 class="font-semibold text-pink-400">Love Life</h3>
+                        </div>
+                        <div id="pred-love" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                    </div>
+                </div>
+
+                <!-- Best Days -->
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Best Days of the Month</h2>
+                    <div class="flex flex-wrap gap-3 mb-6">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Month</label>
+                            <input type="month" id="best-days-month"
+                                   class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Category</label>
+                            <select id="best-days-category"
+                                    class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                                <option value="career">Career</option>
+                                <option value="health">Health</option>
+                                <option value="love">Love Life</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="loadBestDays()" id="best-days-btn"
+                                    class="px-5 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
+                                Find Best Days
+                            </button>
+                        </div>
+                    </div>
+                    <div id="best-days-results" class="hidden">
+                        <div id="best-days-list" class="space-y-3 mb-6"></div>
+                        <div class="border-t border-white/10 pt-4">
+                            <h3 class="text-sm font-medium text-gray-300 mb-2">AI Analysis</h3>
+                            <div id="best-days-narrative" class="text-gray-400 text-sm leading-relaxed"></div>
+                        </div>
+                    </div>
+                    <div id="best-days-loading" class="hidden py-8 text-center">
+                        <div class="loading-star text-3xl mb-2">&#9733;</div>
+                        <p class="text-gray-400 text-sm">Analyzing planetary transits...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="border-t border-white/10 py-6 mt-10">
+            <p class="text-center text-gray-500 text-xs">
+                Predictions based on Vedic astrology (Jyotish) using precise planetary calculations &amp; AI interpretation. For entertainment purposes only.
+            </p>
+        </footer>
     </div>
 
-    <script>
-        // Redirect to dashboard if already logged in
-        if (localStorage.getItem('token')) {
-            window.location.href = '/dashboard';
-        }
-
-        function switchTab(tab) {
-            const loginForm = document.getElementById('login-form');
-            const regForm = document.getElementById('register-form');
-            const loginTab = document.getElementById('tab-login');
-            const regTab = document.getElementById('tab-register');
-            const errorEl = document.getElementById('auth-error');
-            errorEl.classList.add('hidden');
-
-            if (tab === 'login') {
-                loginForm.classList.remove('hidden');
-                regForm.classList.add('hidden');
-                loginTab.className = loginTab.className.replace('text-gray-400 hover:text-white', '').trim();
-                loginTab.classList.add('bg-amber-500/20', 'text-amber-400');
-                regTab.classList.remove('bg-amber-500/20', 'text-amber-400');
-                regTab.classList.add('text-gray-400', 'hover:text-white');
-            } else {
-                regForm.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-                regTab.className = regTab.className.replace('text-gray-400 hover:text-white', '').trim();
-                regTab.classList.add('bg-amber-500/20', 'text-amber-400');
-                loginTab.classList.remove('bg-amber-500/20', 'text-amber-400');
-                loginTab.classList.add('text-gray-400', 'hover:text-white');
-            }
-        }
-
-        function showError(msg) {
-            const el = document.getElementById('auth-error');
-            el.textContent = msg;
-            el.classList.remove('hidden');
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const btn = document.getElementById('login-btn');
-            btn.textContent = 'Logging in...';
-            btn.disabled = true;
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: document.getElementById('login-email').value,
-                        password: document.getElementById('login-password').value,
-                    }),
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    showError(data.detail || 'Login failed');
-                    return;
-                }
-                localStorage.setItem('token', data.access_token);
-                window.location.href = '/dashboard';
-            } catch (err) {
-                showError('Network error. Please try again.');
-            } finally {
-                btn.textContent = 'Login';
-                btn.disabled = false;
-            }
-        }
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            const btn = document.getElementById('reg-btn');
-            btn.textContent = 'Creating account...';
-            btn.disabled = true;
-            try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        full_name: document.getElementById('reg-name').value,
-                        email: document.getElementById('reg-email').value,
-                        password: document.getElementById('reg-password').value,
-                    }),
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    showError(data.detail || 'Registration failed');
-                    return;
-                }
-                localStorage.setItem('token', data.access_token);
-                window.location.href = '/dashboard';
-            } catch (err) {
-                showError('Network error. Please try again.');
-            } finally {
-                btn.textContent = 'Create Account';
-                btn.disabled = false;
-            }
-        }
-    </script>
+    <script src="/static/script.js"></script>
 </body>
 </html>

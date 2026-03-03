@@ -11,10 +11,6 @@
       "dest": "/public/static/$1"
     },
     {
-      "src": "/dashboard",
-      "dest": "/public/dashboard.html"
-    },
-    {
       "src": "^/$",
       "dest": "/public/index.html"
     },
