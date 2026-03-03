@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
 
 # On Vercel, /tmp is the only writable directory
-if os.getenv("VERCEL", "") == "1":
+if os.getenv("VERCEL", "").strip() == "1":
     _default_db = "sqlite:////tmp/vedic_astro.db"
 else:
     _default_db = "sqlite:///./vedic_astro.db"

@@ -7,7 +7,8 @@ const state = {
     birthDetails: JSON.parse(localStorage.getItem("birthDetails") || "null"),
     chartData: null,
     activePeriod: "daily",
-    predictions: {},   // "daily_career" -> text
+    customDate: null,      // "YYYY-MM-DD" or null (means today)
+    predictions: {},       // "daily_career" or "daily_career_2026-04-15" -> text
 };
 
 // ---------------------------------------------------------------------------
@@ -20,7 +21,6 @@ async function api(endpoint, options = {}) {
 
     const res = await fetch(`/api${endpoint}`, { ...options, headers });
 
-    // Safely parse JSON — handle cases where server returns non-JSON
     let data;
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
@@ -40,7 +40,7 @@ async function api(endpoint, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: get current birth details from form or state
+// Helpers
 // ---------------------------------------------------------------------------
 
 function getBirthPayload() {
@@ -51,23 +51,23 @@ function getBirthPayload() {
     };
 }
 
-// ---------------------------------------------------------------------------
-// HTML Escape
-// ---------------------------------------------------------------------------
-
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML.replace(/\n/g, "<br>");
 }
 
+function formatDate(isoStr) {
+    const d = new Date(isoStr + "T00:00:00");
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 // ---------------------------------------------------------------------------
-// Auth UI: Toggle Login Panel
+// Auth UI
 // ---------------------------------------------------------------------------
 
 function toggleLogin() {
-    const panel = document.getElementById("login-panel");
-    panel.classList.toggle("hidden");
+    document.getElementById("login-panel").classList.toggle("hidden");
 }
 
 function switchAuthTab(tab) {
@@ -75,8 +75,7 @@ function switchAuthTab(tab) {
     const registerTab = document.getElementById("auth-tab-register");
     const loginForm = document.getElementById("form-login");
     const registerForm = document.getElementById("form-register");
-    const errorEl = document.getElementById("auth-error");
-    errorEl.classList.add("hidden");
+    document.getElementById("auth-error").classList.add("hidden");
 
     if (tab === "login") {
         loginTab.classList.add("text-amber-400", "border-amber-400");
@@ -95,28 +94,21 @@ function switchAuthTab(tab) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Auth: Login
-// ---------------------------------------------------------------------------
-
 async function handleLogin(e) {
     e.preventDefault();
     const errorEl = document.getElementById("auth-error");
     errorEl.classList.add("hidden");
 
-    const email = document.getElementById("login-email").value;
-    const password = document.getElementById("login-password").value;
-
     try {
         const data = await api("/login", {
             method: "POST",
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({
+                email: document.getElementById("login-email").value,
+                password: document.getElementById("login-password").value,
+            }),
         });
-
         state.token = data.access_token;
         localStorage.setItem("token", data.access_token);
-
-        // If the user has saved birth details, auto-fill the form
         if (data.user) {
             if (data.user.date_of_birth && data.user.time_of_birth && data.user.place_of_birth) {
                 document.getElementById("dob").value = data.user.date_of_birth;
@@ -125,51 +117,37 @@ async function handleLogin(e) {
             }
             showLoggedIn(data.user.full_name);
         }
-
-        // Close login panel
         document.getElementById("login-panel").classList.add("hidden");
-
     } catch (err) {
         errorEl.textContent = err.message;
         errorEl.classList.remove("hidden");
     }
 }
-
-// ---------------------------------------------------------------------------
-// Auth: Register
-// ---------------------------------------------------------------------------
 
 async function handleRegister(e) {
     e.preventDefault();
     const errorEl = document.getElementById("auth-error");
     errorEl.classList.add("hidden");
-
     const full_name = document.getElementById("reg-name").value;
-    const email = document.getElementById("reg-email").value;
-    const password = document.getElementById("reg-password").value;
 
     try {
         const data = await api("/register", {
             method: "POST",
-            body: JSON.stringify({ email, password, full_name }),
+            body: JSON.stringify({
+                email: document.getElementById("reg-email").value,
+                password: document.getElementById("reg-password").value,
+                full_name,
+            }),
         });
-
         state.token = data.access_token;
         localStorage.setItem("token", data.access_token);
         showLoggedIn(full_name);
-
-        // Close login panel
         document.getElementById("login-panel").classList.add("hidden");
-
     } catch (err) {
         errorEl.textContent = err.message;
         errorEl.classList.remove("hidden");
     }
 }
-
-// ---------------------------------------------------------------------------
-// Auth: Show logged-in state / Logout
-// ---------------------------------------------------------------------------
 
 function showLoggedIn(name) {
     document.getElementById("auth-area").classList.add("hidden");
@@ -206,38 +184,37 @@ async function getReading(e) {
         return;
     }
 
-    // Save birth details to state and localStorage
     state.birthDetails = { dob, tob, pob };
     localStorage.setItem("birthDetails", JSON.stringify(state.birthDetails));
-
-    // Clear any old predictions
     state.predictions = {};
     state.chartData = null;
+    state.customDate = null;
 
     btn.innerHTML = "&#9733; Calculating your chart...";
     btn.disabled = true;
 
     try {
-        // Fetch chart data
         const chart = await api("/chart", {
             method: "POST",
             body: JSON.stringify(getBirthPayload()),
         });
         state.chartData = chart;
 
-        // Display chart summary
         displayChartSummary(chart);
+        displayDashaTimeline(chart.dasha_timeline);
 
-        // Show predictions section and set default month
+        // Show predictions section and set defaults
         document.getElementById("predictions-section").classList.remove("hidden");
         const now = new Date();
         document.getElementById("best-days-month").value = now.toISOString().slice(0, 7);
+        document.getElementById("prediction-date").value = now.toISOString().slice(0, 10);
 
-        // Load predictions for default period
+        // Hide custom date label (showing today by default)
+        document.getElementById("prediction-date-label").classList.add("hidden");
+
         state.activePeriod = "daily";
         loadPredictions("daily");
 
-        // Scroll to chart summary
         document.getElementById("chart-summary").scrollIntoView({ behavior: "smooth" });
 
     } catch (err) {
@@ -274,6 +251,61 @@ function displayChartSummary(chart) {
 }
 
 // ---------------------------------------------------------------------------
+// Dasha Timeline
+// ---------------------------------------------------------------------------
+
+function displayDashaTimeline(timeline) {
+    if (!timeline || !timeline.length) return;
+
+    document.getElementById("dasha-section").classList.remove("hidden");
+    const container = document.getElementById("dasha-timeline");
+
+    const planetColors = {
+        Sun: "amber", Moon: "blue", Mars: "red", Mercury: "green",
+        Jupiter: "yellow", Venus: "pink", Saturn: "purple", Rahu: "gray", Ketu: "gray",
+    };
+
+    let html = "";
+    for (const md of timeline) {
+        const color = planetColors[md.lord] || "gray";
+        const isCurrent = md.is_current;
+        const border = isCurrent ? "border-amber-500/50 bg-amber-500/5" : "border-white/10";
+
+        html += `<div class="border ${border} rounded-xl p-4 ${isCurrent ? '' : 'opacity-70'}">`;
+        html += `<div class="flex items-center justify-between cursor-pointer" onclick="toggleDashaDetail(this)">`;
+        html += `<div class="flex items-center gap-3">`;
+        html += `<div class="w-8 h-8 rounded-full bg-${color}-500/20 flex items-center justify-center text-xs font-bold text-${color}-400">${md.lord.slice(0, 2)}</div>`;
+        html += `<div>`;
+        html += `<span class="font-semibold text-sm ${isCurrent ? 'text-amber-400' : 'text-white'}">${md.lord} Mahadasha</span>`;
+        if (isCurrent) html += ` <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full ml-2">Current</span>`;
+        html += `<div class="text-xs text-gray-400">${formatDate(md.start)} - ${formatDate(md.end)} (${md.duration_years} yrs)</div>`;
+        html += `</div></div>`;
+        html += `<span class="text-gray-500 text-xs dasha-arrow">&#9660;</span>`;
+        html += `</div>`;
+
+        // Antardasha details (collapsed by default, expanded for current)
+        html += `<div class="dasha-detail ${isCurrent ? '' : 'hidden'} mt-3 pl-11 space-y-1">`;
+        for (const ad of md.antardashas) {
+            const adActive = ad.is_current;
+            html += `<div class="flex items-center gap-2 text-xs ${adActive ? 'text-amber-400 font-medium' : 'text-gray-400'}">`;
+            html += `<span class="w-1.5 h-1.5 rounded-full ${adActive ? 'bg-amber-400' : 'bg-gray-600'}"></span>`;
+            html += `<span>${ad.lord}</span>`;
+            html += `<span class="text-gray-500">${formatDate(ad.start)} - ${formatDate(ad.end)}</span>`;
+            if (adActive) html += ` <span class="bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded text-[10px]">Active</span>`;
+            html += `</div>`;
+        }
+        html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function toggleDashaDetail(el) {
+    const detail = el.parentElement.querySelector(".dasha-detail");
+    if (detail) detail.classList.toggle("hidden");
+}
+
+// ---------------------------------------------------------------------------
 // Predictions Loading
 // ---------------------------------------------------------------------------
 
@@ -283,8 +315,8 @@ function showLoading(category) {
 }
 
 function showPrediction(category, text) {
-    const el = document.getElementById(`pred-${category}`);
-    el.innerHTML = `<div class="prediction-text">${escapeHtml(text)}</div>`;
+    document.getElementById(`pred-${category}`).innerHTML =
+        `<div class="prediction-text">${escapeHtml(text)}</div>`;
 }
 
 function showPredictionError(category, msg) {
@@ -292,17 +324,16 @@ function showPredictionError(category, msg) {
         `<div class="text-red-400 text-xs">${escapeHtml(msg)}</div>`;
 }
 
-async function loadPredictions(period) {
+async function loadPredictions(period, targetDate) {
     if (!state.birthDetails) return;
     state.activePeriod = period;
+    const dateKey = targetDate || "";
 
-    // Show loading for all 3 categories
     ["career", "health", "love"].forEach(showLoading);
 
-    // Fetch all 3 in parallel via POST
     const categories = ["career", "health", "love"];
     const promises = categories.map(async (cat) => {
-        const key = `${period}_${cat}`;
+        const key = `${period}_${cat}_${dateKey}`;
         if (state.predictions[key]) {
             showPrediction(cat, state.predictions[key]);
             return;
@@ -313,6 +344,8 @@ async function loadPredictions(period) {
                 prediction_type: period,
                 category: cat,
             };
+            if (targetDate) payload.target_date = targetDate;
+
             const data = await api("/predict", {
                 method: "POST",
                 body: JSON.stringify(payload),
@@ -328,11 +361,28 @@ async function loadPredictions(period) {
 }
 
 // ---------------------------------------------------------------------------
+// Custom Date Predictions
+// ---------------------------------------------------------------------------
+
+function loadCustomDatePredictions() {
+    const dateInput = document.getElementById("prediction-date").value;
+    if (!dateInput) return;
+
+    state.customDate = dateInput;
+
+    // Show the date label
+    const label = document.getElementById("prediction-date-label");
+    label.classList.remove("hidden");
+    document.getElementById("prediction-date-display").textContent = formatDate(dateInput);
+
+    loadPredictions(state.activePeriod, dateInput);
+}
+
+// ---------------------------------------------------------------------------
 // Period Tab Switching
 // ---------------------------------------------------------------------------
 
 function switchPeriod(period) {
-    // Update tab styles
     document.querySelectorAll(".period-tab").forEach((tab) => {
         tab.className = tab.className
             .replace("bg-amber-500/20", "")
@@ -346,7 +396,7 @@ function switchPeriod(period) {
     activeTab.classList.remove("text-gray-400", "hover:text-white", "hover:bg-white/5", "border-white/10");
     activeTab.classList.add("bg-amber-500/20", "text-amber-400", "border-amber-500/30");
 
-    loadPredictions(period);
+    loadPredictions(period, state.customDate);
 }
 
 // ---------------------------------------------------------------------------
@@ -370,23 +420,13 @@ async function loadBestDays() {
     results.classList.add("hidden");
 
     try {
-        const payload = {
-            ...getBirthPayload(),
-            category,
-            month,
-        };
         const data = await api("/best-days", {
             method: "POST",
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...getBirthPayload(), category, month }),
         });
 
-        // Render best days list
         const list = document.getElementById("best-days-list");
-        const categoryColors = {
-            career: "blue",
-            health: "green",
-            love: "pink",
-        };
+        const categoryColors = { career: "blue", health: "green", love: "pink" };
         const color = categoryColors[category] || "amber";
 
         list.innerHTML = data.best_days
@@ -413,10 +453,7 @@ async function loadBestDays() {
             })
             .join("");
 
-        // Render narrative
-        document.getElementById("best-days-narrative").innerHTML =
-            escapeHtml(data.narrative);
-
+        document.getElementById("best-days-narrative").innerHTML = escapeHtml(data.narrative);
         loading.classList.add("hidden");
         results.classList.remove("hidden");
     } catch (err) {
@@ -436,24 +473,20 @@ async function loadBestDays() {
 // ---------------------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
-    // If user was logged in, try to restore session
     if (state.token) {
         api("/me").then(user => {
             showLoggedIn(user.full_name);
-            // Auto-fill birth details from server if user has them
             if (user.date_of_birth && user.time_of_birth && user.place_of_birth) {
                 document.getElementById("dob").value = user.date_of_birth;
                 document.getElementById("tob").value = user.time_of_birth;
                 document.getElementById("pob").value = user.place_of_birth;
             }
         }).catch(() => {
-            // Token expired or invalid — just clear it silently
             state.token = null;
             localStorage.removeItem("token");
         });
     }
 
-    // If there are saved birth details from last session, pre-fill form
     if (state.birthDetails) {
         document.getElementById("dob").value = state.birthDetails.dob || "";
         document.getElementById("tob").value = state.birthDetails.tob || "";

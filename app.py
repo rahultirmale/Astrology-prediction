@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # App setup
 # ---------------------------------------------------------------------------
 
-IS_VERCEL = os.getenv("VERCEL", "") == "1"
+IS_VERCEL = os.getenv("VERCEL", "").strip() == "1"
 
 app = FastAPI(title="Jyotish AI - Vedic Astrology Predictions")
 
@@ -87,6 +87,7 @@ class PredictRequest(BaseModel):
     place_of_birth: str
     prediction_type: str  # daily / monthly / yearly
     category: str         # career / health / love
+    target_date: Optional[str] = None  # "YYYY-MM-DD" for custom date readings
 
 class BestDaysRequest(BaseModel):
     date_of_birth: str
@@ -290,13 +291,21 @@ def predict(req: PredictRequest, db: Session = Depends(get_db),
         latitude=lat, longitude=lon, utc_offset=utc_offset,
     )
 
-    today = date.today()
-    if req.prediction_type == "daily":
-        target_period = today.isoformat()
-    elif req.prediction_type == "monthly":
-        target_period = today.strftime("%Y-%m")
+    # Use custom target date if provided, else today
+    if req.target_date:
+        try:
+            target = datetime.strptime(req.target_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(400, "target_date must be YYYY-MM-DD format")
     else:
-        target_period = str(today.year)
+        target = date.today()
+
+    if req.prediction_type == "daily":
+        target_period = target.isoformat()
+    elif req.prediction_type == "monthly":
+        target_period = target.strftime("%Y-%m")
+    else:
+        target_period = str(target.year)
 
     # If logged in, use cache; otherwise call Claude directly
     user_id = user.id if user else 0

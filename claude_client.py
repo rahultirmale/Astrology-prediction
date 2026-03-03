@@ -165,15 +165,18 @@ def get_prediction(chart_data: dict, prediction_type: str, category: str,
     """Get a prediction, using cache when available."""
     data_hash = _cache_key_hash(chart_data, prediction_type, category, target_period)
 
-    cached = (
-        db.query(PredictionCache)
-        .filter_by(user_id=user_id, prediction_type=prediction_type,
-                   category=category, period_key=target_period)
-        .first()
-    )
-
-    if cached and cached.astro_data_hash == data_hash:
-        return cached.prediction_text
+    # Try cache read (graceful — skip if DB is read-only)
+    try:
+        cached = (
+            db.query(PredictionCache)
+            .filter_by(user_id=user_id, prediction_type=prediction_type,
+                       category=category, period_key=target_period)
+            .first()
+        )
+        if cached and cached.astro_data_hash == data_hash:
+            return cached.prediction_text
+    except Exception:
+        cached = None
 
     prompt = build_prompt(chart_data, prediction_type, category, target_period)
 
@@ -185,20 +188,24 @@ def get_prediction(chart_data: dict, prediction_type: str, category: str,
     )
     prediction_text = message.content[0].text
 
-    if cached:
-        cached.prediction_text = prediction_text
-        cached.astro_data_hash = data_hash
-    else:
-        cached = PredictionCache(
-            user_id=user_id,
-            prediction_type=prediction_type,
-            category=category,
-            period_key=target_period,
-            prediction_text=prediction_text,
-            astro_data_hash=data_hash,
-        )
-        db.add(cached)
-    db.commit()
+    # Try cache write (graceful — don't crash if DB is read-only)
+    try:
+        if cached:
+            cached.prediction_text = prediction_text
+            cached.astro_data_hash = data_hash
+        else:
+            cached = PredictionCache(
+                user_id=user_id,
+                prediction_type=prediction_type,
+                category=category,
+                period_key=target_period,
+                prediction_text=prediction_text,
+                astro_data_hash=data_hash,
+            )
+            db.add(cached)
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return prediction_text
 
@@ -210,15 +217,17 @@ def get_best_days_prediction(chart_data: dict, category: str,
     period_key = f"best_{month_str}_{category}"
     data_hash = _cache_key_hash(chart_data, "best_days", category, month_str)
 
-    cached = (
-        db.query(PredictionCache)
-        .filter_by(user_id=user_id, prediction_type="best_days",
-                   category=category, period_key=period_key)
-        .first()
-    )
-
-    if cached and cached.astro_data_hash == data_hash:
-        return cached.prediction_text
+    try:
+        cached = (
+            db.query(PredictionCache)
+            .filter_by(user_id=user_id, prediction_type="best_days",
+                       category=category, period_key=period_key)
+            .first()
+        )
+        if cached and cached.astro_data_hash == data_hash:
+            return cached.prediction_text
+    except Exception:
+        cached = None
 
     prompt = build_best_days_prompt(chart_data, category, best_days, month_str)
 
@@ -230,19 +239,22 @@ def get_best_days_prediction(chart_data: dict, category: str,
     )
     narrative = message.content[0].text
 
-    if cached:
-        cached.prediction_text = narrative
-        cached.astro_data_hash = data_hash
-    else:
-        cached = PredictionCache(
-            user_id=user_id,
-            prediction_type="best_days",
-            category=category,
-            period_key=period_key,
-            prediction_text=narrative,
-            astro_data_hash=data_hash,
-        )
-        db.add(cached)
-    db.commit()
+    try:
+        if cached:
+            cached.prediction_text = narrative
+            cached.astro_data_hash = data_hash
+        else:
+            cached = PredictionCache(
+                user_id=user_id,
+                prediction_type="best_days",
+                category=category,
+                period_key=period_key,
+                prediction_text=narrative,
+                astro_data_hash=data_hash,
+            )
+            db.add(cached)
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return narrative

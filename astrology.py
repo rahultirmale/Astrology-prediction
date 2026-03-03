@@ -509,6 +509,27 @@ def generate_birth_chart(dob: date, tob: str, latitude: float,
         sign_idx = (asc_idx + h - 1) % 12
         house_lords[h] = SIGN_LORDS[sign_idx]
 
+    # Build complete dasha timeline (Mahadasha + Antardasha)
+    dasha_timeline = []
+    for md in dashas:
+        md_entry = {
+            "lord": md["lord"],
+            "start": md["start"].isoformat(),
+            "end": md["end"].isoformat(),
+            "duration_years": md["duration_years"],
+            "is_current": md["start"] <= date.today() < md["end"],
+            "antardashas": [
+                {
+                    "lord": ad["lord"],
+                    "start": ad["start"].isoformat(),
+                    "end": ad["end"].isoformat(),
+                    "is_current": ad["start"] <= date.today() < ad["end"],
+                }
+                for ad in md["antardashas"]
+            ],
+        }
+        dasha_timeline.append(md_entry)
+
     return {
         "natal_chart": {
             "ascendant": houses["ascendant"],
@@ -530,6 +551,7 @@ def generate_birth_chart(dob: date, tob: str, latitude: float,
             },
         },
         "dasha": current_dasha,
+        "dasha_timeline": dasha_timeline,
         "transits": transit_analysis,
         "sade_sati": sade_sati,
     }
