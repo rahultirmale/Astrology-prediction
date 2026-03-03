@@ -63,6 +63,18 @@ class PredictionCache(Base):
     )
 
 
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), index=True, nullable=False)
+    razorpay_order_id = Column(String(100), nullable=False)
+    razorpay_payment_id = Column(String(100), nullable=True)
+    amount = Column(Integer, nullable=False)          # in paise (49900 = ₹499)
+    status = Column(String(20), default="created")    # created / paid / failed
+    created_at = Column(DateTime, default=func.now())
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

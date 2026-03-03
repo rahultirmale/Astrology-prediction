@@ -476,6 +476,76 @@ def detect_sade_sati(natal_moon_sign_idx: int,
 
 
 # ---------------------------------------------------------------------------
+# Yoga Detection
+# ---------------------------------------------------------------------------
+
+def detect_yogas(planets: dict, asc_sign_idx: int) -> list:
+    """Detect basic Vedic yogas from planetary positions."""
+    yogas = []
+    kendra_houses = [1, 4, 7, 10]
+
+    # 1. Pancha Mahapurusha Yogas
+    mahapurusha = {
+        "Mars":    ("Ruchaka Yoga",  "Courage, authority, leadership strength"),
+        "Mercury": ("Bhadra Yoga",   "Intelligence, communication, business acumen"),
+        "Jupiter": ("Hamsa Yoga",    "Wisdom, spirituality, good fortune"),
+        "Venus":   ("Malavya Yoga",  "Luxury, beauty, artistic talent, romance"),
+        "Saturn":  ("Sasa Yoga",     "Discipline, authority over masses, persistence"),
+    }
+    for planet, (yoga_name, desc) in mahapurusha.items():
+        p = planets[planet]
+        if p["house"] in kendra_houses and p["dignity"] in ("exalted", "own_sign"):
+            yogas.append({
+                "name": yoga_name,
+                "description": desc,
+                "planets": [planet],
+                "type": "mahapurusha",
+            })
+
+    # 2. Gajakesari Yoga: Jupiter in kendra from Moon
+    moon_idx = planets["Moon"]["sign_index"]
+    jup_idx = planets["Jupiter"]["sign_index"]
+    if (jup_idx - moon_idx) % 12 in [0, 3, 6, 9]:
+        yogas.append({
+            "name": "Gajakesari Yoga",
+            "description": "Fame, wisdom, lasting prosperity",
+            "planets": ["Jupiter", "Moon"],
+            "type": "wealth",
+        })
+
+    # 3. Budhaditya Yoga: Sun and Mercury in same sign
+    if planets["Sun"]["sign_index"] == planets["Mercury"]["sign_index"]:
+        yogas.append({
+            "name": "Budhaditya Yoga",
+            "description": "Sharp intellect, fame through knowledge",
+            "planets": ["Sun", "Mercury"],
+            "type": "intelligence",
+        })
+
+    # 4. Chandra-Mangal Yoga: Moon and Mars in same sign
+    if planets["Moon"]["sign_index"] == planets["Mars"]["sign_index"]:
+        yogas.append({
+            "name": "Chandra-Mangal Yoga",
+            "description": "Wealth through determination, entrepreneurial spirit",
+            "planets": ["Moon", "Mars"],
+            "type": "wealth",
+        })
+
+    # 5. Amala Yoga: Benefic in 10th house
+    for planet in ["Jupiter", "Venus", "Mercury"]:
+        if planets[planet]["house"] == 10:
+            yogas.append({
+                "name": "Amala Yoga",
+                "description": f"Virtuous reputation and good character ({planet} in 10th)",
+                "planets": [planet],
+                "type": "character",
+            })
+            break
+
+    return yogas
+
+
+# ---------------------------------------------------------------------------
 # Master chart generation
 # ---------------------------------------------------------------------------
 
@@ -502,8 +572,11 @@ def generate_birth_chart(dob: date, tob: str, latitude: float,
     saturn_transit_idx = transit_planets["Saturn"]["sign_index"]
     sade_sati = detect_sade_sati(natal_moon_sign_idx, saturn_transit_idx)
 
-    # Determine house lords for key houses
+    # Detect yogas
     asc_idx = houses["ascendant_sign_index"]
+    yogas = detect_yogas(planets, asc_idx)
+
+    # Determine house lords for key houses
     house_lords = {}
     for h in range(1, 13):
         sign_idx = (asc_idx + h - 1) % 12
@@ -554,6 +627,7 @@ def generate_birth_chart(dob: date, tob: str, latitude: float,
         "dasha_timeline": dasha_timeline,
         "transits": transit_analysis,
         "sade_sati": sade_sati,
+        "yogas": yogas,
     }
 
 

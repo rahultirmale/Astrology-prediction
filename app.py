@@ -28,7 +28,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 
-from database import PredictionCache, User, get_db, init_db
+import hmac
+import hashlib
+
+import razorpay
+
+from database import Payment, PredictionCache, User, get_db, init_db
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +68,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 geolocator = Nominatim(user_agent="jyotish-ai-vedic-astro")
 tf = TimezoneFinder()
 
+# Razorpay
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+razorpay_client = (
+    razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET
+    else None
+)
+PAYMENT_AMOUNT_PAISE = 49900  # ₹499
+
 # ---------------------------------------------------------------------------
 # Pydantic schemas
 # ---------------------------------------------------------------------------
@@ -88,6 +103,7 @@ class PredictRequest(BaseModel):
     prediction_type: str  # daily / monthly / yearly
     category: str         # career / health / love
     target_date: Optional[str] = None  # "YYYY-MM-DD" for custom date readings
+    email: Optional[str] = None       # for payment verification
 
 class BestDaysRequest(BaseModel):
     date_of_birth: str
@@ -95,11 +111,21 @@ class BestDaysRequest(BaseModel):
     place_of_birth: str
     category: str
     month: Optional[str] = None  # "YYYY-MM", defaults to current
+    email: Optional[str] = None  # for payment verification
 
 class ChartRequest(BaseModel):
     date_of_birth: str
     time_of_birth: str
     place_of_birth: str
+
+class CreateOrderRequest(BaseModel):
+    email: str
+
+class VerifyPaymentRequest(BaseModel):
+    email: str
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
 
 # ---------------------------------------------------------------------------
 # Auth helpers
@@ -250,7 +276,122 @@ def health_check():
     return checks
 
 # ---------------------------------------------------------------------------
-# Anonymous prediction endpoints (NO auth required)
+# Payment helper
+# ---------------------------------------------------------------------------
+
+def _check_payment(email: str, db: Session) -> bool:
+    """Check if the given email has a successful payment."""
+    if not email:
+        return False
+    try:
+        paid = (
+            db.query(Payment)
+            .filter(Payment.email == email.lower().strip(),
+                    Payment.status == "paid")
+            .first()
+        )
+        return paid is not None
+    except Exception:
+        return False
+
+# ---------------------------------------------------------------------------
+# Razorpay payment endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/create-order")
+def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
+    """Create a Razorpay order for ₹499."""
+    if not razorpay_client:
+        raise HTTPException(500, "Payment gateway not configured")
+
+    email = req.email.lower().strip()
+
+    # Check if already paid
+    if _check_payment(email, db):
+        return {"already_paid": True}
+
+    try:
+        order = razorpay_client.order.create({
+            "amount": PAYMENT_AMOUNT_PAISE,
+            "currency": "INR",
+            "receipt": f"jyotish_{email[:20]}_{int(datetime.utcnow().timestamp())}",
+            "notes": {"email": email, "product": "jyotish_ai_predictions"},
+        })
+    except Exception as e:
+        logger.error(f"Razorpay order creation failed: {e}")
+        raise HTTPException(502, "Failed to create payment order")
+
+    # Save order record
+    try:
+        payment = Payment(
+            email=email,
+            razorpay_order_id=order["id"],
+            amount=PAYMENT_AMOUNT_PAISE,
+            status="created",
+        )
+        db.add(payment)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return {
+        "order_id": order["id"],
+        "amount": PAYMENT_AMOUNT_PAISE,
+        "currency": "INR",
+        "key_id": RAZORPAY_KEY_ID,
+    }
+
+
+@app.post("/api/verify-payment")
+def verify_payment(req: VerifyPaymentRequest, db: Session = Depends(get_db)):
+    """Verify Razorpay payment signature and mark as paid."""
+    if not razorpay_client:
+        raise HTTPException(500, "Payment gateway not configured")
+
+    # Verify signature
+    msg = f"{req.razorpay_order_id}|{req.razorpay_payment_id}"
+    expected_sig = hmac.new(
+        RAZORPAY_KEY_SECRET.encode(), msg.encode(), hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_sig, req.razorpay_signature):
+        raise HTTPException(400, "Payment verification failed — invalid signature")
+
+    email = req.email.lower().strip()
+
+    # Update payment record
+    try:
+        payment = (
+            db.query(Payment)
+            .filter(Payment.razorpay_order_id == req.razorpay_order_id)
+            .first()
+        )
+        if payment:
+            payment.razorpay_payment_id = req.razorpay_payment_id
+            payment.status = "paid"
+        else:
+            payment = Payment(
+                email=email,
+                razorpay_order_id=req.razorpay_order_id,
+                razorpay_payment_id=req.razorpay_payment_id,
+                amount=PAYMENT_AMOUNT_PAISE,
+                status="paid",
+            )
+            db.add(payment)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return {"status": "paid", "email": email}
+
+
+@app.get("/api/check-payment")
+def check_payment(email: str = Query(...), db: Session = Depends(get_db)):
+    """Check if an email has an active payment."""
+    return {"paid": _check_payment(email, db)}
+
+# ---------------------------------------------------------------------------
+# Anonymous prediction endpoints (payment-gated AI predictions)
 # ---------------------------------------------------------------------------
 
 @app.post("/api/chart")
@@ -275,11 +416,18 @@ def get_chart(req: ChartRequest):
 @app.post("/api/predict")
 def predict(req: PredictRequest, db: Session = Depends(get_db),
             user=Depends(get_current_user_optional)):
-    """Get a prediction for one category — no auth required."""
+    """Get a prediction for one category — requires payment."""
     if req.prediction_type not in ("daily", "monthly", "yearly"):
         raise HTTPException(400, "type must be daily, monthly, or yearly")
     if req.category not in ("career", "health", "love"):
         raise HTTPException(400, "category must be career, health, or love")
+
+    # Payment gate
+    if not _check_payment(req.email or "", db):
+        raise HTTPException(
+            status_code=402,
+            detail="Payment required to unlock AI predictions",
+        )
 
     lat, lon, tz_str, utc_offset, dob = _resolve_location(
         req.place_of_birth, req.date_of_birth, req.time_of_birth
@@ -347,9 +495,16 @@ def predict(req: PredictRequest, db: Session = Depends(get_db),
 @app.post("/api/best-days")
 def get_best_days(req: BestDaysRequest, db: Session = Depends(get_db),
                   user=Depends(get_current_user_optional)):
-    """Get best days of the month — no auth required."""
+    """Get best days of the month — requires payment."""
     if req.category not in ("career", "health", "love"):
         raise HTTPException(400, "category must be career, health, or love")
+
+    # Payment gate
+    if not _check_payment(req.email or "", db):
+        raise HTTPException(
+            status_code=402,
+            detail="Payment required to unlock AI predictions",
+        )
 
     lat, lon, tz_str, utc_offset, dob = _resolve_location(
         req.place_of_birth, req.date_of_birth, req.time_of_birth

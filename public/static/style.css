@@ -90,3 +90,104 @@ select option {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+
+/* ---- Astrology Tables ---- */
+.astro-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.astro-table thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+}
+.astro-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.15s ease;
+}
+.astro-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+.astro-table tbody td {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Responsive table scroll hint */
+@media (max-width: 640px) {
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+    .astro-table {
+        min-width: 520px;
+    }
+}
+
+/* Planet dignity badges */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.badge-exalted { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.badge-own     { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.badge-debilitated { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.badge-neutral { background: rgba(255, 255, 255, 0.05); color: #9ca3af; }
+
+.badge-favorable   { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.badge-unfavorable { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+.badge-retro { background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-size: 0.6rem; }
+.badge-direct { background: rgba(255, 255, 255, 0.05); color: #6b7280; font-size: 0.6rem; }
+
+/* ---- Paywall Overlay ---- */
+.paywall-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(6px);
+    border-radius: 1rem;
+}
+.paywall-overlay.hidden {
+    display: none;
+}
+
+/* Blur the content behind the paywall */
+#predictions-content.locked {
+    filter: blur(6px);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Yoga card */
+.yoga-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    transition: border-color 0.2s ease;
+}
+.yoga-card:hover {
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* House lord card */
+.house-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    text-align: center;
+    transition: border-color 0.2s ease;
+}
+.house-card:hover {
+    border-color: rgba(245, 158, 11, 0.3);
+}

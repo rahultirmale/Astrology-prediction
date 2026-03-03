@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 font-['Inter'] text-white">
 
@@ -144,6 +145,68 @@
                 </div>
             </section>
 
+            <!-- Planet Positions Table -->
+            <section id="planets-section" class="hidden mb-8">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Planetary Positions</h2>
+                    <div class="overflow-x-auto">
+                        <table class="astro-table w-full text-sm">
+                            <thead>
+                                <tr class="text-gray-400 text-xs border-b border-white/10">
+                                    <th class="text-left py-2 px-3">Planet</th>
+                                    <th class="text-left py-2 px-3">Sign</th>
+                                    <th class="text-right py-2 px-3">Degree</th>
+                                    <th class="text-center py-2 px-3">House</th>
+                                    <th class="text-center py-2 px-3">Status</th>
+                                    <th class="text-center py-2 px-3">Dignity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="planets-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Current Transits Table -->
+            <section id="transits-section" class="hidden mb-8">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Current Transits (Gochar)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="astro-table w-full text-sm">
+                            <thead>
+                                <tr class="text-gray-400 text-xs border-b border-white/10">
+                                    <th class="text-left py-2 px-3">Planet</th>
+                                    <th class="text-left py-2 px-3">Transit Sign</th>
+                                    <th class="text-center py-2 px-3">House from Moon</th>
+                                    <th class="text-center py-2 px-3">Effect</th>
+                                    <th class="text-center py-2 px-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transits-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- House Lords Grid -->
+            <section id="houses-section" class="hidden mb-8">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">House Lords (Bhava Patis)</h2>
+                    <div id="houses-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+                </div>
+            </section>
+
+            <!-- Yogas Section -->
+            <section id="yogas-section" class="hidden mb-8">
+                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Yogas (Planetary Combinations)</h2>
+                    <div id="yogas-container"></div>
+                    <div id="no-yogas" class="hidden text-gray-400 text-sm">
+                        No major yogas detected in this chart. This is normal — many charts have subtle yogas that require deeper analysis.
+                    </div>
+                </div>
+            </section>
+
             <!-- Dasha Timeline -->
             <section id="dasha-section" class="hidden mb-8">
                 <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
@@ -152,93 +215,128 @@
                 </div>
             </section>
 
-            <!-- Predictions -->
-            <section id="predictions-section" class="hidden">
-                <!-- Period tabs + custom date picker -->
-                <div class="flex flex-wrap items-end gap-3 mb-6">
-                    <div class="flex gap-2">
-                        <button onclick="switchPeriod('daily')" id="period-daily"
-                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all bg-amber-500/20 text-amber-400 border border-amber-500/30">Daily</button>
-                        <button onclick="switchPeriod('monthly')" id="period-monthly"
-                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Monthly</button>
-                        <button onclick="switchPeriod('yearly')" id="period-yearly"
-                                class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Yearly</button>
-                    </div>
-                    <div class="flex items-end gap-2 ml-auto">
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Custom Date</label>
-                            <input type="date" id="prediction-date"
-                                   class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+            <!-- Paywall / Predictions Section -->
+            <section id="predictions-wrapper" class="hidden relative">
+
+                <!-- Paywall Overlay -->
+                <div id="paywall-overlay" class="paywall-overlay">
+                    <div class="bg-slate-900/95 backdrop-blur-md border border-amber-500/30 rounded-2xl p-8 max-w-md mx-auto text-center shadow-2xl shadow-amber-500/10">
+                        <div class="text-4xl mb-3">&#128302;</div>
+                        <h3 class="text-xl font-bold text-white mb-2">Unlock AI-Powered Predictions</h3>
+                        <p class="text-gray-400 text-sm mb-4">
+                            Get personalized daily, monthly & yearly predictions for Career, Health & Love Life.
+                            Plus: Best Days of the month & custom date readings.
+                        </p>
+                        <ul class="text-left text-sm space-y-2 mb-6 text-gray-300">
+                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> AI predictions for Career, Health & Love</li>
+                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Daily, Monthly & Yearly readings</li>
+                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Custom date readings</li>
+                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Best days of the month analysis</li>
+                            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> One-time payment — lifetime access</li>
+                        </ul>
+                        <div class="mb-4">
+                            <input type="email" id="payment-email" required placeholder="Enter your email to unlock"
+                                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50 mb-3">
                         </div>
-                        <button onclick="loadCustomDatePredictions()" id="custom-date-btn"
-                                class="px-4 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
-                            Get Reading
+                        <button onclick="initPayment()" id="pay-btn"
+                                class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500
+                                       hover:from-amber-400 hover:to-orange-400 text-white font-bold
+                                       rounded-lg transition-all transform hover:scale-[1.01] active:scale-[0.99] text-lg">
+                            Unlock Predictions — &#8377;499
                         </button>
-                    </div>
-                </div>
-                <div id="prediction-date-label" class="hidden mb-4 text-sm text-gray-400">
-                    Showing predictions for: <span id="prediction-date-display" class="text-amber-400 font-medium"></span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg">&#128188;</div>
-                            <h3 class="font-semibold text-blue-400">Career</h3>
-                        </div>
-                        <div id="pred-career" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
-                    </div>
-                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-lg">&#128154;</div>
-                            <h3 class="font-semibold text-green-400">Health</h3>
-                        </div>
-                        <div id="pred-health" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
-                    </div>
-                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">&#10084;&#65039;</div>
-                            <h3 class="font-semibold text-pink-400">Love Life</h3>
-                        </div>
-                        <div id="pred-love" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                        <p class="text-gray-500 text-xs mt-3">Secure payment via Razorpay. One-time fee, no subscription.</p>
+                        <div id="payment-error" class="hidden mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs"></div>
                     </div>
                 </div>
 
-                <!-- Best Days -->
-                <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                    <h2 class="text-lg font-semibold text-amber-400 mb-4">Best Days of the Month</h2>
-                    <div class="flex flex-wrap gap-3 mb-6">
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Month</label>
-                            <input type="month" id="best-days-month"
-                                   class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                <!-- Actual Predictions Content (blurred when locked) -->
+                <div id="predictions-content">
+                    <!-- Period tabs + custom date picker -->
+                    <div class="flex flex-wrap items-end gap-3 mb-6">
+                        <div class="flex gap-2">
+                            <button onclick="switchPeriod('daily')" id="period-daily"
+                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all bg-amber-500/20 text-amber-400 border border-amber-500/30">Daily</button>
+                            <button onclick="switchPeriod('monthly')" id="period-monthly"
+                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Monthly</button>
+                            <button onclick="switchPeriod('yearly')" id="period-yearly"
+                                    class="period-tab px-5 py-2.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white border border-white/10 hover:bg-white/5">Yearly</button>
                         </div>
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Category</label>
-                            <select id="best-days-category"
-                                    class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
-                                <option value="career">Career</option>
-                                <option value="health">Health</option>
-                                <option value="love">Love Life</option>
-                            </select>
-                        </div>
-                        <div class="flex items-end">
-                            <button onclick="loadBestDays()" id="best-days-btn"
-                                    class="px-5 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
-                                Find Best Days
+                        <div class="flex items-end gap-2 ml-auto">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Custom Date</label>
+                                <input type="date" id="prediction-date"
+                                       class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                            </div>
+                            <button onclick="loadCustomDatePredictions()" id="custom-date-btn"
+                                    class="px-4 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
+                                Get Reading
                             </button>
                         </div>
                     </div>
-                    <div id="best-days-results" class="hidden">
-                        <div id="best-days-list" class="space-y-3 mb-6"></div>
-                        <div class="border-t border-white/10 pt-4">
-                            <h3 class="text-sm font-medium text-gray-300 mb-2">AI Analysis</h3>
-                            <div id="best-days-narrative" class="text-gray-400 text-sm leading-relaxed"></div>
+                    <div id="prediction-date-label" class="hidden mb-4 text-sm text-gray-400">
+                        Showing predictions for: <span id="prediction-date-display" class="text-amber-400 font-medium"></span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-lg">&#128188;</div>
+                                <h3 class="font-semibold text-blue-400">Career</h3>
+                            </div>
+                            <div id="pred-career" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                        </div>
+                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-lg">&#128154;</div>
+                                <h3 class="font-semibold text-green-400">Health</h3>
+                            </div>
+                            <div id="pred-health" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
+                        </div>
+                        <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">&#10084;&#65039;</div>
+                                <h3 class="font-semibold text-pink-400">Love Life</h3>
+                            </div>
+                            <div id="pred-love" class="text-gray-300 text-sm leading-relaxed min-h-[120px]"><div class="loading-skeleton"></div></div>
                         </div>
                     </div>
-                    <div id="best-days-loading" class="hidden py-8 text-center">
-                        <div class="loading-star text-3xl mb-2">&#9733;</div>
-                        <p class="text-gray-400 text-sm">Analyzing planetary transits...</p>
+
+                    <!-- Best Days -->
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold text-amber-400 mb-4">Best Days of the Month</h2>
+                        <div class="flex flex-wrap gap-3 mb-6">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Month</label>
+                                <input type="month" id="best-days-month"
+                                       class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Category</label>
+                                <select id="best-days-category"
+                                        class="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500/50">
+                                    <option value="career">Career</option>
+                                    <option value="health">Health</option>
+                                    <option value="love">Love Life</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="loadBestDays()" id="best-days-btn"
+                                        class="px-5 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-all">
+                                    Find Best Days
+                                </button>
+                            </div>
+                        </div>
+                        <div id="best-days-results" class="hidden">
+                            <div id="best-days-list" class="space-y-3 mb-6"></div>
+                            <div class="border-t border-white/10 pt-4">
+                                <h3 class="text-sm font-medium text-gray-300 mb-2">AI Analysis</h3>
+                                <div id="best-days-narrative" class="text-gray-400 text-sm leading-relaxed"></div>
+                            </div>
+                        </div>
+                        <div id="best-days-loading" class="hidden py-8 text-center">
+                            <div class="loading-star text-3xl mb-2">&#9733;</div>
+                            <p class="text-gray-400 text-sm">Analyzing planetary transits...</p>
+                        </div>
                     </div>
                 </div>
             </section>

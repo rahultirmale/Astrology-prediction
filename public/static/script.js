@@ -9,6 +9,8 @@ const state = {
     activePeriod: "daily",
     customDate: null,      // "YYYY-MM-DD" or null (means today)
     predictions: {},       // "daily_career" or "daily_career_2026-04-15" -> text
+    isPaid: localStorage.getItem("isPaid") === "true",
+    email: localStorage.getItem("paymentEmail") || "",
 };
 
 // ---------------------------------------------------------------------------
@@ -35,7 +37,11 @@ async function api(endpoint, options = {}) {
         }
     }
 
-    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    if (!res.ok) {
+        const err = new Error(data.detail || `Request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+    }
     return data;
 }
 
@@ -200,20 +206,29 @@ async function getReading(e) {
         });
         state.chartData = chart;
 
+        // Display free content
         displayChartSummary(chart);
+        displayPlanetPositions(chart);
+        displayTransits(chart);
+        displayHouseLords(chart);
+        displayYogas(chart);
         displayDashaTimeline(chart.dasha_timeline);
 
-        // Show predictions section and set defaults
-        document.getElementById("predictions-section").classList.remove("hidden");
+        // Show predictions wrapper and update paywall state
+        document.getElementById("predictions-wrapper").classList.remove("hidden");
         const now = new Date();
         document.getElementById("best-days-month").value = now.toISOString().slice(0, 7);
         document.getElementById("prediction-date").value = now.toISOString().slice(0, 10);
-
-        // Hide custom date label (showing today by default)
         document.getElementById("prediction-date-label").classList.add("hidden");
 
-        state.activePeriod = "daily";
-        loadPredictions("daily");
+        // Check payment state and update UI
+        await checkAndUpdatePaywall();
+
+        // If paid, auto-load predictions
+        if (state.isPaid) {
+            state.activePeriod = "daily";
+            loadPredictions("daily");
+        }
 
         document.getElementById("chart-summary").scrollIntoView({ behavior: "smooth" });
 
@@ -248,6 +263,152 @@ function displayChartSummary(chart) {
     } else {
         document.getElementById("sade-sati-banner").classList.add("hidden");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Display Planet Positions
+// ---------------------------------------------------------------------------
+
+function displayPlanetPositions(chart) {
+    const planets = chart.natal_chart.planets;
+    const tbody = document.getElementById("planets-table-body");
+
+    const planetSymbols = {
+        Sun: "\u2609", Moon: "\u263D", Mars: "\u2642", Mercury: "\u263F",
+        Jupiter: "\u2643", Venus: "\u2640", Saturn: "\u2644", Rahu: "\u260A", Ketu: "\u260B",
+    };
+
+    let html = "";
+    for (const [name, p] of Object.entries(planets)) {
+        const symbol = planetSymbols[name] || "";
+        const dignityClass = p.dignity === "exalted" ? "badge-exalted"
+            : p.dignity === "own_sign" ? "badge-own"
+            : p.dignity === "debilitated" ? "badge-debilitated"
+            : "badge-neutral";
+        const dignityLabel = p.dignity === "own_sign" ? "Own" : p.dignity.charAt(0).toUpperCase() + p.dignity.slice(1);
+        const retroBadge = p.retrograde
+            ? '<span class="badge badge-retro">R</span>'
+            : '<span class="badge badge-direct">D</span>';
+
+        html += `<tr>
+            <td class="font-medium text-white">${symbol} ${name}</td>
+            <td class="text-gray-300">${p.sign}</td>
+            <td class="text-right text-gray-300">${p.degree.toFixed(2)}\u00B0</td>
+            <td class="text-center text-gray-300">${p.house}</td>
+            <td class="text-center">${retroBadge}</td>
+            <td class="text-center"><span class="badge ${dignityClass}">${dignityLabel}</span></td>
+        </tr>`;
+    }
+
+    tbody.innerHTML = html;
+    document.getElementById("planets-section").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------------
+// Display Transits
+// ---------------------------------------------------------------------------
+
+function displayTransits(chart) {
+    const transits = chart.transits;
+    if (!transits || !transits.length) return;
+
+    const tbody = document.getElementById("transits-table-body");
+
+    let html = "";
+    for (const t of transits) {
+        const effectClass = t.is_favorable ? "badge-favorable" : "badge-unfavorable";
+        const effectLabel = t.is_favorable ? "Favorable" : "Unfavorable";
+        const retroBadge = t.retrograde
+            ? '<span class="badge badge-retro">R</span>'
+            : '<span class="badge badge-direct">D</span>';
+
+        html += `<tr>
+            <td class="font-medium text-white">${t.planet}</td>
+            <td class="text-gray-300">${t.transit_sign}</td>
+            <td class="text-center text-gray-300">${t.house_from_moon}</td>
+            <td class="text-center"><span class="badge ${effectClass}">${effectLabel}</span></td>
+            <td class="text-center">${retroBadge}</td>
+        </tr>`;
+    }
+
+    tbody.innerHTML = html;
+    document.getElementById("transits-section").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------------
+// Display House Lords
+// ---------------------------------------------------------------------------
+
+function displayHouseLords(chart) {
+    const houseSigns = chart.natal_chart.house_signs;
+    const houseLords = chart.natal_chart.house_lords;
+    if (!houseSigns || !houseLords) return;
+
+    const grid = document.getElementById("houses-grid");
+    const houseNames = [
+        "1st - Self", "2nd - Wealth", "3rd - Siblings", "4th - Home",
+        "5th - Children", "6th - Enemies", "7th - Marriage", "8th - Longevity",
+        "9th - Fortune", "10th - Career", "11th - Gains", "12th - Loss",
+    ];
+
+    let html = "";
+    for (let i = 0; i < 12; i++) {
+        const sign = houseSigns[i];
+        const lord = houseLords[String(i + 1)] || houseLords[i + 1] || "—";
+        const label = houseNames[i] || `House ${i + 1}`;
+        html += `<div class="house-card">
+            <div class="text-xs text-gray-500 mb-1">${label}</div>
+            <div class="text-sm font-semibold text-white">${sign}</div>
+            <div class="text-xs text-amber-400 mt-1">${lord}</div>
+        </div>`;
+    }
+
+    grid.innerHTML = html;
+    document.getElementById("houses-section").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------------
+// Display Yogas
+// ---------------------------------------------------------------------------
+
+function displayYogas(chart) {
+    const yogas = chart.yogas;
+    const container = document.getElementById("yogas-container");
+    const noYogas = document.getElementById("no-yogas");
+
+    if (!yogas || yogas.length === 0) {
+        container.innerHTML = "";
+        noYogas.classList.remove("hidden");
+    } else {
+        noYogas.classList.add("hidden");
+
+        const typeColors = {
+            "Pancha Mahapurusha": "purple",
+            "Gajakesari": "yellow",
+            "Budhaditya": "green",
+            "Chandra-Mangal": "red",
+            "Amala": "blue",
+        };
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+        for (const y of yogas) {
+            const color = typeColors[y.type] || "amber";
+            html += `<div class="yoga-card">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-${color}-400 text-lg font-bold">\u2726</span>
+                    <span class="font-semibold text-white">${escapeHtml(y.name)}</span>
+                </div>
+                <p class="text-gray-400 text-xs leading-relaxed">${escapeHtml(y.description)}</p>
+                <div class="mt-2 text-xs text-gray-500">
+                    Formed by: <span class="text-gray-300">${escapeHtml(y.formed_by)}</span>
+                </div>
+            </div>`;
+        }
+        html += "</div>";
+        container.innerHTML = html;
+    }
+
+    document.getElementById("yogas-section").classList.remove("hidden");
 }
 
 // ---------------------------------------------------------------------------
@@ -306,6 +467,142 @@ function toggleDashaDetail(el) {
 }
 
 // ---------------------------------------------------------------------------
+// Payment / Paywall
+// ---------------------------------------------------------------------------
+
+async function checkAndUpdatePaywall() {
+    // If we already know they're paid from localStorage, verify with server
+    if (state.email) {
+        try {
+            const data = await api(`/check-payment?email=${encodeURIComponent(state.email)}`);
+            state.isPaid = data.paid;
+            if (data.paid) {
+                localStorage.setItem("isPaid", "true");
+            } else {
+                localStorage.removeItem("isPaid");
+            }
+        } catch {
+            // If check fails, trust localStorage
+        }
+    }
+    updatePaywallUI();
+}
+
+function updatePaywallUI() {
+    const overlay = document.getElementById("paywall-overlay");
+    const content = document.getElementById("predictions-content");
+
+    if (state.isPaid) {
+        overlay.classList.add("hidden");
+        content.classList.remove("locked");
+    } else {
+        overlay.classList.remove("hidden");
+        content.classList.add("locked");
+        // Pre-fill email if we have it
+        if (state.email) {
+            document.getElementById("payment-email").value = state.email;
+        }
+    }
+}
+
+async function initPayment() {
+    const emailInput = document.getElementById("payment-email");
+    const email = emailInput.value.trim().toLowerCase();
+    const errorEl = document.getElementById("payment-error");
+    const btn = document.getElementById("pay-btn");
+    errorEl.classList.add("hidden");
+
+    if (!email || !email.includes("@")) {
+        errorEl.textContent = "Please enter a valid email address.";
+        errorEl.classList.remove("hidden");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Creating order...";
+
+    try {
+        const data = await api("/create-order", {
+            method: "POST",
+            body: JSON.stringify({ email }),
+        });
+
+        // If already paid, unlock immediately
+        if (data.already_paid) {
+            state.isPaid = true;
+            state.email = email;
+            localStorage.setItem("isPaid", "true");
+            localStorage.setItem("paymentEmail", email);
+            updatePaywallUI();
+            loadPredictions(state.activePeriod);
+            return;
+        }
+
+        // Open Razorpay checkout
+        const options = {
+            key: data.key_id,
+            amount: data.amount,
+            currency: data.currency,
+            name: "Jyotish AI",
+            description: "AI-Powered Vedic Astrology Predictions",
+            order_id: data.order_id,
+            prefill: { email: email },
+            theme: { color: "#f59e0b" },
+            handler: function (response) {
+                verifyPayment(email, response);
+            },
+            modal: {
+                ondismiss: function () {
+                    btn.disabled = false;
+                    btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+                },
+            },
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+        btn.disabled = false;
+        btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+    }
+}
+
+async function verifyPayment(email, response) {
+    const errorEl = document.getElementById("payment-error");
+    const btn = document.getElementById("pay-btn");
+    btn.textContent = "Verifying payment...";
+
+    try {
+        await api("/verify-payment", {
+            method: "POST",
+            body: JSON.stringify({
+                email: email,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+            }),
+        });
+
+        // Success — unlock
+        state.isPaid = true;
+        state.email = email;
+        localStorage.setItem("isPaid", "true");
+        localStorage.setItem("paymentEmail", email);
+        updatePaywallUI();
+
+        // Auto-load predictions
+        loadPredictions(state.activePeriod);
+    } catch (err) {
+        errorEl.textContent = "Payment verification failed: " + err.message;
+        errorEl.classList.remove("hidden");
+        btn.disabled = false;
+        btn.innerHTML = "Unlock Predictions &mdash; &#8377;499";
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Predictions Loading
 // ---------------------------------------------------------------------------
 
@@ -325,7 +622,7 @@ function showPredictionError(category, msg) {
 }
 
 async function loadPredictions(period, targetDate) {
-    if (!state.birthDetails) return;
+    if (!state.birthDetails || !state.isPaid) return;
     state.activePeriod = period;
     const dateKey = targetDate || "";
 
@@ -343,6 +640,7 @@ async function loadPredictions(period, targetDate) {
                 ...getBirthPayload(),
                 prediction_type: period,
                 category: cat,
+                email: state.email,
             };
             if (targetDate) payload.target_date = targetDate;
 
@@ -353,7 +651,14 @@ async function loadPredictions(period, targetDate) {
             state.predictions[key] = data.prediction;
             showPrediction(cat, data.prediction);
         } catch (err) {
-            showPredictionError(cat, err.message);
+            if (err.status === 402) {
+                // Payment required — show paywall
+                state.isPaid = false;
+                localStorage.removeItem("isPaid");
+                updatePaywallUI();
+            } else {
+                showPredictionError(cat, err.message);
+            }
         }
     });
 
@@ -404,7 +709,7 @@ function switchPeriod(period) {
 // ---------------------------------------------------------------------------
 
 async function loadBestDays() {
-    if (!state.birthDetails) return;
+    if (!state.birthDetails || !state.isPaid) return;
 
     const month = document.getElementById("best-days-month").value;
     const category = document.getElementById("best-days-category").value;
@@ -422,7 +727,7 @@ async function loadBestDays() {
     try {
         const data = await api("/best-days", {
             method: "POST",
-            body: JSON.stringify({ ...getBirthPayload(), category, month }),
+            body: JSON.stringify({ ...getBirthPayload(), category, month, email: state.email }),
         });
 
         const list = document.getElementById("best-days-list");
@@ -457,6 +762,11 @@ async function loadBestDays() {
         loading.classList.add("hidden");
         results.classList.remove("hidden");
     } catch (err) {
+        if (err.status === 402) {
+            state.isPaid = false;
+            localStorage.removeItem("isPaid");
+            updatePaywallUI();
+        }
         loading.classList.add("hidden");
         results.classList.remove("hidden");
         document.getElementById("best-days-list").innerHTML =
