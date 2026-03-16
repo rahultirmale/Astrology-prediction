@@ -675,15 +675,15 @@ async function loadPartnerPrediction() {
 // ---------------------------------------------------------------------------
 
 async function checkAndUpdatePaywall() {
-    // If localStorage already says paid, trust it (server DB is ephemeral on Vercel)
-    if (localStorage.getItem("isPaid") === "true" && state.email) {
-        state.isPaid = true;
-    } else if (state.email) {
+    // Verify payment status with server (persistent Supabase DB)
+    if (state.email) {
         try {
             const data = await api(`/check-payment?email=${encodeURIComponent(state.email)}`);
             state.isPaid = data.paid;
             if (data.paid) {
                 localStorage.setItem("isPaid", "true");
+            } else {
+                localStorage.removeItem("isPaid");
             }
         } catch {
             // If check fails, trust localStorage
