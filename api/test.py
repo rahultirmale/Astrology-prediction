@@ -1,4 +1,5 @@
 """Minimal test endpoint to diagnose Vercel runtime issues."""
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -12,51 +13,48 @@ app = FastAPI()
 @app.get("/api/test")
 def test():
     results = {}
+    results["DATABASE_URL_preview"] = os.getenv("DATABASE_URL", "NOT SET")[:60] + "..."
 
-    # Test 1: basic imports
+    # Test connection with multiple pooler regions
+    import psycopg2
+    password = "rahulPACE@066"
+    ref = "xtijxyfzbibteluyrxrn"
+    regions = ["ap-south-1", "ap-southeast-1", "us-east-1", "eu-west-1", "eu-central-1", "ap-northeast-1"]
+
+    for region in regions:
+        host = f"aws-0-{region}.pooler.supabase.com"
+        user = f"postgres.{ref}"
+        try:
+            conn = psycopg2.connect(
+                host=host, port=6543, dbname="postgres",
+                user=user, password=password,
+                connect_timeout=5, sslmode="require"
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            results[f"pooler_{region}"] = f"OK: {cur.fetchone()}"
+            cur.close()
+            conn.close()
+        except Exception as e:
+            results[f"pooler_{region}"] = str(e)[:120]
+
+    # Also try direct connection with IPv4 workaround
     try:
-        import fastapi
-        results["fastapi"] = "ok"
+        import socket
+        direct_host = f"db.{ref}.supabase.co"
+        addrs = socket.getaddrinfo(direct_host, 5432)
+        results["direct_dns"] = str([(a[0].name, a[4]) for a in addrs[:3]])
     except Exception as e:
-        results["fastapi"] = str(e)
+        results["direct_dns"] = str(e)
 
-    # Test 2: psycopg2
-    try:
-        import psycopg2
-        results["psycopg2"] = "ok"
-    except Exception as e:
-        results["psycopg2"] = str(e)
-
-    # Test 3: database module
-    try:
-        from database import engine
-        results["database_engine"] = str(engine.url).split("@")[0][:30] + "..."
-    except Exception as e:
-        results["database_engine"] = str(e)
-
-    # Test 4: connect to database
+    # Try direct with current DATABASE_URL
     try:
         from database import engine
         from sqlalchemy import text
         with engine.connect() as conn:
             row = conn.execute(text("SELECT 1")).fetchone()
-            results["db_connection"] = f"ok: {row}"
+            results["sqlalchemy_connect"] = f"OK: {row}"
     except Exception as e:
-        results["db_connection"] = f"{type(e).__name__}: {e}"
-
-    # Test 5: init_db
-    try:
-        from database import init_db
-        init_db()
-        results["init_db"] = "ok"
-    except Exception as e:
-        results["init_db"] = f"{type(e).__name__}: {e}"
-
-    # Test 6: app import
-    try:
-        from app import app as main_app
-        results["app_import"] = "ok"
-    except Exception as e:
-        results["app_import"] = f"{type(e).__name__}: {e}\n{traceback.format_exc()[-500:]}"
+        results["sqlalchemy_connect"] = f"{type(e).__name__}: {str(e)[:150]}"
 
     return results
