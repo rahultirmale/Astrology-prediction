@@ -70,15 +70,28 @@ class Payment(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), index=True, nullable=False)
+    user_id = Column(Integer, nullable=True)
     razorpay_order_id = Column(String(100), nullable=False)
     razorpay_payment_id = Column(String(100), nullable=True)
     amount = Column(Integer, nullable=False)          # in paise (49900 = ₹499)
     status = Column(String(20), default="created")    # created / paid / failed
     created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=True)
 
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Migrate existing tables: add columns that create_all won't add to existing tables
+    from sqlalchemy import text
+    for stmt in [
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS user_id INTEGER",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
+    ]:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(stmt))
+        except Exception:
+            pass  # Column already exists or DB doesn't support IF NOT EXISTS
 
 
 def get_db():

@@ -345,7 +345,7 @@
                                 </div>
                             </div>
 
-                            <div id="partner-pred-lock" class="hidden bg-white/5 rounded-lg p-6 text-center cursor-pointer" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                            <div id="partner-pred-lock" class="hidden bg-white/5 rounded-lg p-6 text-center cursor-pointer" onclick="initPayment()">
                                 <div class="text-2xl mb-2">&#128274;</div>
                                 <p class="text-amber-400 font-semibold text-sm">Pay &#8377;19 to unlock Partner Predictions</p>
                                 <p class="text-gray-500 text-xs mt-1">Scroll up to the unlock banner</p>
@@ -429,6 +429,9 @@
                     </div>
                 </div>
 
+                <!-- Subscription Status (shown for paid users) -->
+                <div id="subscription-info" class="hidden mb-6"></div>
+
                 <!-- Unlock Banner (shown for free users after preview) -->
                 <div id="unlock-banner" class="hidden mb-10">
                     <div class="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/30 rounded-2xl p-6 md:p-8">
@@ -436,24 +439,26 @@
                             <div class="flex-1 text-center md:text-left">
                                 <h3 class="text-lg font-bold text-white mb-1">&#128302; Want the full reading?</h3>
                                 <p class="text-gray-400 text-sm mb-3">
-                                    Unlock complete predictions, custom date readings & best days analysis — one-time payment, lifetime access.
+                                    Unlock complete predictions, custom date readings & best days analysis — <strong class="text-amber-400">1-year subscription</strong>.
                                 </p>
                                 <div class="flex flex-wrap gap-3 text-xs text-gray-400 justify-center md:justify-start">
                                     <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Full AI predictions</span>
                                     <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Best days of month</span>
                                     <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> Custom date readings</span>
+                                    <span class="flex items-center gap-1"><span class="text-green-400">&#10003;</span> 1 year of access</span>
                                 </div>
                             </div>
                             <div class="flex flex-col items-center gap-2 min-w-[260px]">
-                                <input type="email" id="payment-email" required placeholder="Enter your email"
-                                       class="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50">
+                                <div id="payment-email-display" class="hidden w-full text-center text-sm text-gray-300 py-2">
+                                    Paying as: <span id="payment-user-email" class="text-amber-400 font-medium"></span>
+                                </div>
                                 <button onclick="initPayment()" id="pay-btn"
                                         class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500
                                                hover:from-amber-400 hover:to-orange-400 text-white font-bold
                                                rounded-lg transition-all transform hover:scale-[1.01] active:scale-[0.99]">
-                                    Unlock Full Reading — &#8377;19
+                                    Unlock Full Reading — &#8377;19/year
                                 </button>
-                                <p class="text-gray-500 text-[10px]">Secure payment via Razorpay. One-time fee.</p>
+                                <p class="text-gray-500 text-[10px]">Secure payment via Razorpay. 1-year subscription.</p>
                                 <div id="payment-error" class="hidden w-full p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs"></div>
                             </div>
                         </div>
@@ -462,10 +467,10 @@
 
                 <!-- Best Days (fully locked for free users) -->
                 <div id="best-days-wrapper" class="relative mb-10">
-                    <div id="best-days-lock-overlay" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-2xl cursor-pointer" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                    <div id="best-days-lock-overlay" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-2xl cursor-pointer" onclick="initPayment()">
                         <div class="text-center p-6">
                             <div class="text-3xl mb-2">&#128274;</div>
-                            <p class="text-amber-400 font-semibold text-sm">Pay &#8377;19 to unlock Best Days</p>
+                            <p class="text-amber-400 font-semibold text-sm">&#8377;19/year to unlock Best Days</p>
                             <p class="text-gray-400 text-xs mt-1">Scroll up to the unlock banner</p>
                         </div>
                     </div>

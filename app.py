@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 _BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(_BASE_DIR / ".env", override=True)
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
@@ -122,10 +122,10 @@ class CreateOrderRequest(BaseModel):
     email: str
 
 class VerifyPaymentRequest(BaseModel):
-    email: str
     razorpay_order_id: str
     razorpay_payment_id: str
     razorpay_signature: str
+    email: Optional[str] = None  # deprecated: email now comes from JWT
 
 class CompatibilityRequest(BaseModel):
     date_of_birth: str
@@ -169,6 +169,15 @@ def get_current_user_optional(token: str = Depends(oauth2_scheme),
         return db.query(User).filter(User.id == user_id).first()
     except JWTError:
         return None
+
+
+def get_current_user_required(token: str = Depends(oauth2_scheme),
+                              db: Session = Depends(get_db)):
+    """Returns User if token valid, else raises 401."""
+    user = get_current_user_optional(token, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Login required")
+    return user
 
 # ---------------------------------------------------------------------------
 # Geocoding helper (shared by auth and anonymous endpoints)
@@ -232,7 +241,12 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     token = create_token(user.id, user.email)
-    return {"access_token": token, "token_type": "bearer"}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"email": user.email, "full_name": user.full_name},
+        "payment": {"paid": False, "expires_at": None},
+    }
 
 
 @app.post("/api/login")
@@ -241,27 +255,33 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     if not user or not pwd_context.verify(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_token(user.id, user.email)
+    payment_status = _check_payment(user.email, db, user_id=user.id)
     return {
         "access_token": token,
         "token_type": "bearer",
         "user": {
             "full_name": user.full_name,
+            "email": user.email,
             "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
             "time_of_birth": user.time_of_birth,
             "place_of_birth": user.place_of_birth,
         },
+        "payment": payment_status,
     }
 
 
 @app.get("/api/me")
-def get_me(user=Depends(get_current_user_optional)):
+def get_me(user=Depends(get_current_user_optional), db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    payment_status = _check_payment(user.email, db, user_id=user.id)
     return {
         "full_name": user.full_name,
+        "email": user.email,
         "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
         "time_of_birth": user.time_of_birth,
         "place_of_birth": user.place_of_birth,
+        "payment": payment_status,
     }
 
 # ---------------------------------------------------------------------------
@@ -295,36 +315,56 @@ def health_check():
 # Payment helper
 # ---------------------------------------------------------------------------
 
-def _check_payment(email: str, db: Session) -> bool:
-    """Check if the given email has a successful payment."""
-    if not email:
-        return False
+def _check_payment(email: str, db: Session, user_id: int = None) -> dict:
+    """Check if the given email/user has an active (non-expired) payment.
+    Returns {"paid": bool, "expires_at": str|None}.
+    """
+    if not email and not user_id:
+        return {"paid": False, "expires_at": None}
     try:
-        paid = (
-            db.query(Payment)
-            .filter(Payment.email == email.lower().strip(),
-                    Payment.status == "paid")
-            .first()
+        from sqlalchemy import or_
+        filters = [Payment.status == "paid"]
+
+        # Match by user_id OR email
+        identity_filters = []
+        if user_id:
+            identity_filters.append(Payment.user_id == user_id)
+        if email:
+            identity_filters.append(Payment.email == email.lower().strip())
+        filters.append(or_(*identity_filters))
+
+        # Expiry check: expires_at is NULL (legacy) or in the future
+        now = datetime.utcnow()
+        filters.append(
+            or_(Payment.expires_at == None, Payment.expires_at > now)
         )
-        return paid is not None
+
+        payment = db.query(Payment).filter(*filters).first()
+        if payment:
+            return {
+                "paid": True,
+                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+            }
+        return {"paid": False, "expires_at": None}
     except Exception:
-        return False
+        return {"paid": False, "expires_at": None}
 
 # ---------------------------------------------------------------------------
 # Razorpay payment endpoints
 # ---------------------------------------------------------------------------
 
 @app.post("/api/create-order")
-def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
-    """Create a Razorpay order for ₹499."""
+def create_order(user=Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Create a Razorpay order — requires login."""
     if not razorpay_client:
         raise HTTPException(500, "Payment gateway not configured")
 
-    email = req.email.lower().strip()
+    email = user.email.lower().strip()
 
-    # Check if already paid
-    if _check_payment(email, db):
-        return {"already_paid": True}
+    # Check if already paid (active subscription)
+    payment_status = _check_payment(email, db, user_id=user.id)
+    if payment_status["paid"]:
+        return {"already_paid": True, "expires_at": payment_status["expires_at"]}
 
     try:
         order = razorpay_client.order.create({
@@ -341,6 +381,7 @@ def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
     try:
         payment = Payment(
             email=email,
+            user_id=user.id,
             razorpay_order_id=order["id"],
             amount=PAYMENT_AMOUNT_PAISE,
             status="created",
@@ -359,8 +400,10 @@ def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/verify-payment")
-def verify_payment(req: VerifyPaymentRequest, db: Session = Depends(get_db)):
-    """Verify Razorpay payment signature and mark as paid."""
+def verify_payment(req: VerifyPaymentRequest,
+                   user=Depends(get_current_user_required),
+                   db: Session = Depends(get_db)):
+    """Verify Razorpay payment signature and activate 1-year subscription."""
     if not razorpay_client:
         raise HTTPException(500, "Payment gateway not configured")
 
@@ -373,7 +416,8 @@ def verify_payment(req: VerifyPaymentRequest, db: Session = Depends(get_db)):
     if not hmac.compare_digest(expected_sig, req.razorpay_signature):
         raise HTTPException(400, "Payment verification failed — invalid signature")
 
-    email = req.email.lower().strip()
+    email = user.email.lower().strip()
+    expires_at = datetime.utcnow() + timedelta(days=365)
 
     # Update payment record
     try:
@@ -385,26 +429,31 @@ def verify_payment(req: VerifyPaymentRequest, db: Session = Depends(get_db)):
         if payment:
             payment.razorpay_payment_id = req.razorpay_payment_id
             payment.status = "paid"
+            payment.user_id = user.id
+            payment.expires_at = expires_at
         else:
             payment = Payment(
                 email=email,
+                user_id=user.id,
                 razorpay_order_id=req.razorpay_order_id,
                 razorpay_payment_id=req.razorpay_payment_id,
                 amount=PAYMENT_AMOUNT_PAISE,
                 status="paid",
+                expires_at=expires_at,
             )
             db.add(payment)
         db.commit()
     except Exception:
         db.rollback()
 
-    return {"status": "paid", "email": email}
+    return {"status": "paid", "email": email, "expires_at": expires_at.isoformat()}
 
 
 @app.get("/api/check-payment")
-def check_payment(email: str = Query(...), db: Session = Depends(get_db)):
-    """Check if an email has an active payment."""
-    return {"paid": _check_payment(email, db)}
+def check_payment(user=Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Check if the logged-in user has an active subscription."""
+    result = _check_payment(user.email, db, user_id=user.id)
+    return {"paid": result["paid"], "expires_at": result["expires_at"]}
 
 # ---------------------------------------------------------------------------
 # Anonymous prediction endpoints (payment-gated AI predictions)
@@ -438,7 +487,7 @@ def predict(req: PredictRequest, db: Session = Depends(get_db),
     if req.category not in ("career", "health", "love"):
         raise HTTPException(400, "category must be career, health, or love")
 
-    is_paid = _check_payment(req.email or "", db)
+    is_paid = _check_payment(req.email or "", db, user_id=user.id if user else None)["paid"]
 
     lat, lon, tz_str, utc_offset, dob = _resolve_location(
         req.place_of_birth, req.date_of_birth, req.time_of_birth
@@ -519,7 +568,7 @@ def get_best_days(req: BestDaysRequest, db: Session = Depends(get_db),
         raise HTTPException(400, "category must be career, health, or love")
 
     # Payment gate
-    if not _check_payment(req.email or "", db):
+    if not _check_payment(req.email or "", db, user_id=user.id if user else None)["paid"]:
         raise HTTPException(
             status_code=402,
             detail="Payment required to unlock AI predictions",
@@ -577,7 +626,7 @@ def get_compatibility(req: CompatibilityRequest, db: Session = Depends(get_db),
                       user=Depends(get_current_user_optional)):
     """Calculate Ashtakoot Gun Milan + optional AI interpretation (paid)."""
     import time
-    is_paid = _check_payment(req.email or "", db)
+    is_paid = _check_payment(req.email or "", db, user_id=user.id if user else None)["paid"]
 
     try:
         lat1, lon1, tz1, offset1, dob1 = _resolve_location(
@@ -638,7 +687,7 @@ def partner_prediction(req: PartnerPredictionRequest,
     if req.gender not in ("male", "female"):
         raise HTTPException(400, "gender must be 'male' or 'female'")
 
-    if not _check_payment(req.email or "", db):
+    if not _check_payment(req.email or "", db, user_id=user.id if user else None)["paid"]:
         raise HTTPException(
             status_code=402,
             detail="Payment required to unlock partner predictions",

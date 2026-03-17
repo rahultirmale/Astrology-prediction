@@ -11,7 +11,24 @@ const state = {
     predictions: {},       // "daily_career" or "daily_career_2026-04-15" -> text
     isPaid: localStorage.getItem("isPaid") === "true",
     email: localStorage.getItem("paymentEmail") || "",
+    subscriptionExpiry: localStorage.getItem("subscriptionExpiry") || null,
 };
+
+function updatePaymentState(paymentData) {
+    if (paymentData && paymentData.paid) {
+        state.isPaid = true;
+        state.subscriptionExpiry = paymentData.expires_at;
+        localStorage.setItem("isPaid", "true");
+        if (paymentData.expires_at) {
+            localStorage.setItem("subscriptionExpiry", paymentData.expires_at);
+        }
+    } else {
+        state.isPaid = false;
+        state.subscriptionExpiry = null;
+        localStorage.removeItem("isPaid");
+        localStorage.removeItem("subscriptionExpiry");
+    }
+}
 
 // ---------------------------------------------------------------------------
 // API Helper
@@ -115,7 +132,12 @@ async function handleLogin(e) {
         });
         state.token = data.access_token;
         localStorage.setItem("token", data.access_token);
+
         if (data.user) {
+            if (data.user.email) {
+                state.email = data.user.email;
+                localStorage.setItem("paymentEmail", data.user.email);
+            }
             if (data.user.date_of_birth && data.user.time_of_birth && data.user.place_of_birth) {
                 document.getElementById("dob").value = data.user.date_of_birth;
                 document.getElementById("tob").value = data.user.time_of_birth;
@@ -123,7 +145,11 @@ async function handleLogin(e) {
             }
             showLoggedIn(data.user.full_name);
         }
+        if (data.payment) {
+            updatePaymentState(data.payment);
+        }
         document.getElementById("login-panel").classList.add("hidden");
+        updatePaywallUI();
     } catch (err) {
         errorEl.textContent = err.message;
         errorEl.classList.remove("hidden");
@@ -135,20 +161,27 @@ async function handleRegister(e) {
     const errorEl = document.getElementById("auth-error");
     errorEl.classList.add("hidden");
     const full_name = document.getElementById("reg-name").value;
+    const regEmail = document.getElementById("reg-email").value;
 
     try {
         const data = await api("/register", {
             method: "POST",
             body: JSON.stringify({
-                email: document.getElementById("reg-email").value,
+                email: regEmail,
                 password: document.getElementById("reg-password").value,
                 full_name,
             }),
         });
         state.token = data.access_token;
         localStorage.setItem("token", data.access_token);
+        state.email = regEmail;
+        localStorage.setItem("paymentEmail", regEmail);
+        if (data.payment) {
+            updatePaymentState(data.payment);
+        }
         showLoggedIn(full_name);
         document.getElementById("login-panel").classList.add("hidden");
+        updatePaywallUI();
     } catch (err) {
         errorEl.textContent = err.message;
         errorEl.classList.remove("hidden");
@@ -164,10 +197,17 @@ function showLoggedIn(name) {
 
 function logout() {
     state.token = null;
+    state.isPaid = false;
+    state.email = "";
+    state.subscriptionExpiry = null;
     localStorage.removeItem("token");
+    localStorage.removeItem("isPaid");
+    localStorage.removeItem("paymentEmail");
+    localStorage.removeItem("subscriptionExpiry");
     document.getElementById("auth-area").classList.remove("hidden");
     document.getElementById("user-area").classList.add("hidden");
     document.getElementById("user-area").classList.remove("flex");
+    updatePaywallUI();
 }
 
 // ---------------------------------------------------------------------------
@@ -609,7 +649,7 @@ function displayGunMilanResults(data) {
     } else if (data.preview) {
         aiText.innerHTML = `<div class="prediction-preview">
             <div class="text-gray-500 text-xs mb-2">AI interpretation available with full access</div>
-            <span class="text-amber-400 text-xs font-semibold cursor-pointer hover:text-amber-300 transition-colors" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">&#128274; Unlock AI interpretation &rarr;</span>
+            <span class="text-amber-400 text-xs font-semibold cursor-pointer hover:text-amber-300 transition-colors" onclick="initPayment()">&#128274; Unlock AI interpretation &rarr;</span>
         </div>`;
         aiSection.classList.remove("hidden");
     }
@@ -675,16 +715,11 @@ async function loadPartnerPrediction() {
 // ---------------------------------------------------------------------------
 
 async function checkAndUpdatePaywall() {
-    // Verify payment status with server (persistent Supabase DB)
-    if (state.email) {
+    // Verify payment status with server (requires login)
+    if (state.token) {
         try {
-            const data = await api(`/check-payment?email=${encodeURIComponent(state.email)}`);
-            state.isPaid = data.paid;
-            if (data.paid) {
-                localStorage.setItem("isPaid", "true");
-            } else {
-                localStorage.removeItem("isPaid");
-            }
+            const data = await api("/check-payment");
+            updatePaymentState(data);
         } catch {
             // If check fails, trust localStorage
         }
@@ -695,33 +730,67 @@ async function checkAndUpdatePaywall() {
 function updatePaywallUI() {
     const unlockBanner = document.getElementById("unlock-banner");
     const bestDaysLock = document.getElementById("best-days-lock-overlay");
-
     const partnerPredLock = document.getElementById("partner-pred-lock");
+    const subsInfo = document.getElementById("subscription-info");
 
     if (state.isPaid) {
         unlockBanner.classList.add("hidden");
         bestDaysLock.classList.add("hidden");
         if (partnerPredLock) partnerPredLock.classList.add("hidden");
+
+        // Show subscription info
+        if (subsInfo && state.subscriptionExpiry) {
+            const expDate = new Date(state.subscriptionExpiry);
+            const formatted = expDate.toLocaleDateString("en-US", {
+                month: "long", day: "numeric", year: "numeric"
+            });
+            subsInfo.innerHTML = `<div class="text-center py-3 px-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <span class="text-green-400 text-sm font-medium">&#10003; Premium Active</span>
+                <span class="text-gray-400 text-xs ml-2">until ${formatted}</span>
+            </div>`;
+            subsInfo.classList.remove("hidden");
+        } else if (subsInfo) {
+            subsInfo.innerHTML = `<div class="text-center py-3 px-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <span class="text-green-400 text-sm font-medium">&#10003; Premium Active</span>
+            </div>`;
+            subsInfo.classList.remove("hidden");
+        }
     } else {
         unlockBanner.classList.remove("hidden");
         bestDaysLock.classList.remove("hidden");
         if (partnerPredLock) partnerPredLock.classList.remove("hidden");
-        // Pre-fill email if we have it
-        if (state.email) {
-            document.getElementById("payment-email").value = state.email;
+        if (subsInfo) subsInfo.classList.add("hidden");
+
+        // Show logged-in user's email in payment banner
+        if (state.token && state.email) {
+            const emailDisplay = document.getElementById("payment-email-display");
+            const emailSpan = document.getElementById("payment-user-email");
+            if (emailDisplay && emailSpan) {
+                emailSpan.textContent = state.email;
+                emailDisplay.classList.remove("hidden");
+            }
         }
     }
 }
 
 async function initPayment() {
-    const emailInput = document.getElementById("payment-email");
-    const email = emailInput.value.trim().toLowerCase();
+    // Require login before payment
+    if (!state.token) {
+        document.getElementById("login-panel").classList.remove("hidden");
+        const authErr = document.getElementById("auth-error");
+        authErr.textContent = "Please login or create an account first to proceed with payment.";
+        authErr.classList.remove("hidden");
+        document.getElementById("login-panel").scrollIntoView({ behavior: "smooth" });
+        return;
+    }
+
+    const email = state.email;
     const errorEl = document.getElementById("payment-error");
     const btn = document.getElementById("pay-btn");
     errorEl.classList.add("hidden");
 
     if (!email || !email.includes("@")) {
-        errorEl.textContent = "Please enter a valid email address.";
+        errorEl.textContent = "Could not determine your email. Please log out and log in again.";
         errorEl.classList.remove("hidden");
         return;
     }
@@ -732,16 +801,16 @@ async function initPayment() {
     try {
         const data = await api("/create-order", {
             method: "POST",
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({}),
         });
 
         // If already paid, unlock immediately
         if (data.already_paid) {
             state.isPaid = true;
-            state.email = email;
+            state.subscriptionExpiry = data.expires_at;
             localStorage.setItem("isPaid", "true");
-            localStorage.setItem("paymentEmail", email);
-            state.predictions = {};  // clear preview cache to reload full
+            if (data.expires_at) localStorage.setItem("subscriptionExpiry", data.expires_at);
+            state.predictions = {};
             updatePaywallUI();
             loadPredictions(state.activePeriod);
             return;
@@ -753,7 +822,7 @@ async function initPayment() {
             amount: data.amount,
             currency: data.currency,
             name: "Jyotish AI",
-            description: "AI-Powered Vedic Astrology Predictions",
+            description: "1-Year AI Vedic Astrology Subscription",
             order_id: data.order_id,
             prefill: { email: email },
             theme: { color: "#f59e0b" },
@@ -763,7 +832,7 @@ async function initPayment() {
             modal: {
                 ondismiss: function () {
                     btn.disabled = false;
-                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19";
+                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
                 },
             },
         };
@@ -771,10 +840,17 @@ async function initPayment() {
         const rzp = new Razorpay(options);
         rzp.open();
     } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove("hidden");
+        if (err.status === 401) {
+            document.getElementById("login-panel").classList.remove("hidden");
+            const authErr = document.getElementById("auth-error");
+            authErr.textContent = "Your session expired. Please login again.";
+            authErr.classList.remove("hidden");
+        } else {
+            errorEl.textContent = err.message;
+            errorEl.classList.remove("hidden");
+        }
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
     }
 }
 
@@ -784,10 +860,9 @@ async function verifyPayment(email, response) {
     btn.textContent = "Verifying payment...";
 
     try {
-        await api("/verify-payment", {
+        const data = await api("/verify-payment", {
             method: "POST",
             body: JSON.stringify({
-                email: email,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -797,9 +872,11 @@ async function verifyPayment(email, response) {
         // Success — unlock
         state.isPaid = true;
         state.email = email;
+        state.subscriptionExpiry = data.expires_at;
         localStorage.setItem("isPaid", "true");
         localStorage.setItem("paymentEmail", email);
-        state.predictions = {};  // clear preview cache to reload full
+        if (data.expires_at) localStorage.setItem("subscriptionExpiry", data.expires_at);
+        state.predictions = {};
         updatePaywallUI();
 
         // Reload predictions with full content
@@ -808,7 +885,7 @@ async function verifyPayment(email, response) {
         errorEl.textContent = "Payment verification failed: " + err.message;
         errorEl.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
     }
 }
 
@@ -827,7 +904,7 @@ function showPrediction(category, text, isPreview = false) {
         container.innerHTML =
             `<div class="prediction-text prediction-preview">
                 <div class="preview-text-fade">${escapeHtml(text)}</div>
-                <div class="preview-cta" onclick="document.getElementById('payment-email').focus(); document.getElementById('unlock-banner').scrollIntoView({behavior:'smooth'})">
+                <div class="preview-cta" onclick="initPayment()">
                     <span class="text-amber-400 text-xs font-semibold cursor-pointer hover:text-amber-300 transition-colors">&#128274; Unlock full reading &rarr;</span>
                 </div>
             </div>`;
@@ -1001,6 +1078,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (state.token) {
         api("/me").then(user => {
             showLoggedIn(user.full_name);
+            if (user.email) {
+                state.email = user.email;
+                localStorage.setItem("paymentEmail", user.email);
+            }
+            if (user.payment) {
+                updatePaymentState(user.payment);
+                updatePaywallUI();
+            }
             if (user.date_of_birth && user.time_of_birth && user.place_of_birth) {
                 document.getElementById("dob").value = user.date_of_birth;
                 document.getElementById("tob").value = user.time_of_birth;
