@@ -210,6 +210,9 @@ def _resolve_location(place: str, dob_str: str, tob_str: str):
 # Startup
 # ---------------------------------------------------------------------------
 
+# Call init_db eagerly (Vercel serverless may skip ASGI startup events)
+init_db()
+
 @app.on_event("startup")
 def startup():
     init_db()
