@@ -45,6 +45,17 @@ IS_VERCEL = os.getenv("VERCEL", "").strip() == "1"
 
 app = FastAPI(title="Jyotish AI - Vedic Astrology Predictions")
 
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Return JSON error details instead of generic 500 on Vercel."""
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {str(exc)}"},
+    )
+
+
 if not IS_VERCEL:
     os.makedirs("static", exist_ok=True)
     os.makedirs("templates", exist_ok=True)
