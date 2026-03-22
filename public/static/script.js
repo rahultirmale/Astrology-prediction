@@ -217,10 +217,16 @@ function logout() {
     document.getElementById("user-area").classList.add("hidden");
     document.getElementById("user-area").classList.remove("flex");
 
-    // Clear form inputs
+    // Clear all form inputs (birth details + login/register forms)
     document.getElementById("dob").value = "";
     document.getElementById("tob").value = "";
     document.getElementById("pob").value = "";
+    document.getElementById("login-email").value = "";
+    document.getElementById("login-password").value = "";
+    document.getElementById("reg-name").value = "";
+    document.getElementById("reg-email").value = "";
+    document.getElementById("reg-password").value = "";
+    document.getElementById("auth-error").classList.add("hidden");
 
     // Hide all content sections
     const sectionsToHide = [
@@ -1149,4 +1155,13 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("tob").value = state.birthDetails.tob || "";
         document.getElementById("pob").value = state.birthDetails.pob || "";
     }
+
+    // Clear login/register forms on page load to defeat browser password manager
+    setTimeout(() => {
+        document.getElementById("login-email").value = "";
+        document.getElementById("login-password").value = "";
+        document.getElementById("reg-name").value = "";
+        document.getElementById("reg-email").value = "";
+        document.getElementById("reg-password").value = "";
+    }, 100);
 });
