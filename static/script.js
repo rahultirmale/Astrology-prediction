@@ -196,17 +196,64 @@ function showLoggedIn(name) {
 }
 
 function logout() {
+    // Clear state
     state.token = null;
     state.isPaid = false;
     state.email = "";
     state.subscriptionExpiry = null;
+    state.birthDetails = null;
+    state.chartData = null;
+    state.predictions = {};
+
+    // Clear localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("isPaid");
     localStorage.removeItem("paymentEmail");
     localStorage.removeItem("subscriptionExpiry");
+    localStorage.removeItem("birthDetails");
+
+    // Show auth area, hide user area
     document.getElementById("auth-area").classList.remove("hidden");
     document.getElementById("user-area").classList.add("hidden");
     document.getElementById("user-area").classList.remove("flex");
+
+    // Clear form inputs
+    document.getElementById("dob").value = "";
+    document.getElementById("tob").value = "";
+    document.getElementById("pob").value = "";
+
+    // Hide all content sections
+    const sectionsToHide = [
+        "chart-summary", "planets-section", "transits-section",
+        "houses-section", "yogas-section", "dasha-section",
+        "sade-sati-banner", "predictions-wrapper", "compatibility-section",
+        "subscription-info",
+    ];
+    sectionsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+    });
+
+    // Clear prediction cards content
+    ["career", "health", "love"].forEach(cat => {
+        const el = document.getElementById(`pred-${cat}`);
+        if (el) el.innerHTML = "";
+    });
+
+    // Clear best days
+    const bestDaysList = document.getElementById("best-days-list");
+    if (bestDaysList) bestDaysList.innerHTML = "";
+    const bestDaysNarrative = document.getElementById("best-days-narrative");
+    if (bestDaysNarrative) bestDaysNarrative.innerHTML = "";
+    const bestDaysResults = document.getElementById("best-days-results");
+    if (bestDaysResults) bestDaysResults.classList.add("hidden");
+
+    // Clear compatibility results
+    const compatResults = document.getElementById("compat-results");
+    if (compatResults) compatResults.classList.add("hidden");
+    const partnerResults = document.getElementById("partner-pred-results");
+    if (partnerResults) partnerResults.classList.add("hidden");
+
     updatePaywallUI();
 }
 
