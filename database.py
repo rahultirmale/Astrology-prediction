@@ -93,6 +93,18 @@ def init_db():
         except Exception:
             pass  # Column already exists or DB doesn't support IF NOT EXISTS
 
+    # Auto-cleanup: delete prediction cache entries older than 30 days
+    try:
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("DELETE FROM predictions_cache WHERE created_at < :cutoff"),
+                {"cutoff": cutoff},
+            )
+    except Exception:
+        pass  # Table might not exist yet or be empty
+
 
 def get_db():
     db = SessionLocal()
