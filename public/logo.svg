@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a5f"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a9eed"/>
+      <stop offset="100%" style="stop-color:#2563eb"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="star" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#93c5fd"/>
+      <stop offset="100%" style="stop-color:#ffffff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="url(#bg)" stroke="url(#ring)" stroke-width="4"/>
+
+  <!-- Outer orbit ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- Inner orbit ring -->
+  <circle cx="256" cy="256" r="140" fill="none" stroke="url(#ring)" stroke-width="2" opacity="0.25"/>
+
+  <!-- Crescent moon (main element) -->
+  <g transform="translate(256, 240)">
+    <!-- Moon body -->
+    <circle cx="0" cy="0" r="75" fill="url(#moon)"/>
+    <!-- Moon cutout to create crescent -->
+    <circle cx="30" cy="-20" r="60" fill="url(#bg)"/>
+  </g>
+
+  <!-- Large star (top right) -->
+  <g transform="translate(340, 140)">
+    <polygon points="0,-22 6,-7 22,-7 9,4 14,20 0,11 -14,20 -9,4 -22,-7 -6,-7"
+             fill="url(#star)" opacity="0.95"/>
+  </g>
+
+  <!-- Medium star (right) -->
+  <g transform="translate(380, 220)">
+    <polygon points="0,-14 4,-5 14,-5 6,2 9,13 0,7 -9,13 -6,2 -14,-5 -4,-5"
+             fill="url(#star)" opacity="0.8"/>
+  </g>
+
+  <!-- Small star (top) -->
+  <g transform="translate(270, 100)">
+    <polygon points="0,-10 3,-3 10,-3 4,2 6,10 0,5 -6,10 -4,2 -10,-3 -3,-3"
+             fill="url(#star)" opacity="0.7"/>
+  </g>
+
+  <!-- Tiny star dots -->
+  <circle cx="310" cy="110" r="3" fill="#93c5fd" opacity="0.6"/>
+  <circle cx="400" cy="170" r="2.5" fill="#93c5fd" opacity="0.5"/>
+  <circle cx="175" cy="120" r="2" fill="#93c5fd" opacity="0.4"/>
+  <circle cx="390" cy="280" r="2" fill="#93c5fd" opacity="0.45"/>
+  <circle cx="150" cy="180" r="2.5" fill="#93c5fd" opacity="0.35"/>
+
+  <!-- Orbit dots (planets on orbit) -->
+  <circle cx="256" cy="56" r="8" fill="#4a9eed" opacity="0.8"/>
+  <circle cx="420" cy="340" r="6" fill="#60a5fa" opacity="0.6"/>
+  <circle cx="100" cy="300" r="7" fill="#3b82f6" opacity="0.7"/>
+
+  <!-- Bottom text area - subtle "AI" indicator -->
+  <text x="256" y="390" text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="42" font-weight="700" fill="#4a9eed" letter-spacing="8" opacity="0.9">AI</text>
+
+  <!-- Subtle inner glow on moon -->
+  <circle cx="230" cy="230" r="6" fill="white" opacity="0.3"/>
+</svg>
