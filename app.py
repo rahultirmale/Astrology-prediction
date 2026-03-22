@@ -389,7 +389,7 @@ def create_order(user=Depends(get_current_user_required), db: Session = Depends(
         })
     except Exception as e:
         logger.error(f"Razorpay order creation failed: {e}")
-        raise HTTPException(502, "Failed to create payment order")
+        raise HTTPException(502, f"Failed to create payment order: {e}")
 
     # Save order record
     try:
