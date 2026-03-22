@@ -885,7 +885,7 @@ async function initPayment() {
             modal: {
                 ondismiss: function () {
                     btn.disabled = false;
-                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
+                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
                 },
             },
         };
@@ -903,7 +903,7 @@ async function initPayment() {
             errorEl.classList.remove("hidden");
         }
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
     }
 }
 
@@ -938,7 +938,7 @@ async function verifyPayment(email, response) {
         errorEl.textContent = "Payment verification failed: " + err.message;
         errorEl.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;19/year";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
     }
 }
 

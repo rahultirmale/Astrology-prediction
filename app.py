@@ -87,7 +87,7 @@ razorpay_client = (
     if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET
     else None
 )
-PAYMENT_AMOUNT_PAISE = 1900  # ₹19 (testing)
+PAYMENT_AMOUNT_PAISE = 9900  # ₹99
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
