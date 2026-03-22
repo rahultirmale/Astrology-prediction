@@ -3,30 +3,30 @@
 // ---------------------------------------------------------------------------
 
 const state = {
-    token: localStorage.getItem("token"),
-    birthDetails: JSON.parse(localStorage.getItem("birthDetails") || "null"),
+    token: sessionStorage.getItem("token"),
+    birthDetails: JSON.parse(sessionStorage.getItem("birthDetails") || "null"),
     chartData: null,
     activePeriod: "daily",
     customDate: null,      // "YYYY-MM-DD" or null (means today)
     predictions: {},       // "daily_career" or "daily_career_2026-04-15" -> text
-    isPaid: localStorage.getItem("isPaid") === "true",
-    email: localStorage.getItem("paymentEmail") || "",
-    subscriptionExpiry: localStorage.getItem("subscriptionExpiry") || null,
+    isPaid: sessionStorage.getItem("isPaid") === "true",
+    email: sessionStorage.getItem("paymentEmail") || "",
+    subscriptionExpiry: sessionStorage.getItem("subscriptionExpiry") || null,
 };
 
 function updatePaymentState(paymentData) {
     if (paymentData && paymentData.paid) {
         state.isPaid = true;
         state.subscriptionExpiry = paymentData.expires_at;
-        localStorage.setItem("isPaid", "true");
+        sessionStorage.setItem("isPaid", "true");
         if (paymentData.expires_at) {
-            localStorage.setItem("subscriptionExpiry", paymentData.expires_at);
+            sessionStorage.setItem("subscriptionExpiry", paymentData.expires_at);
         }
     } else {
         state.isPaid = false;
         state.subscriptionExpiry = null;
-        localStorage.removeItem("isPaid");
-        localStorage.removeItem("subscriptionExpiry");
+        sessionStorage.removeItem("isPaid");
+        sessionStorage.removeItem("subscriptionExpiry");
     }
 }
 
@@ -131,12 +131,12 @@ async function handleLogin(e) {
             }),
         });
         state.token = data.access_token;
-        localStorage.setItem("token", data.access_token);
+        sessionStorage.setItem("token", data.access_token);
 
         if (data.user) {
             if (data.user.email) {
                 state.email = data.user.email;
-                localStorage.setItem("paymentEmail", data.user.email);
+                sessionStorage.setItem("paymentEmail", data.user.email);
             }
             if (data.user.date_of_birth && data.user.time_of_birth && data.user.place_of_birth) {
                 document.getElementById("dob").value = data.user.date_of_birth;
@@ -173,9 +173,9 @@ async function handleRegister(e) {
             }),
         });
         state.token = data.access_token;
-        localStorage.setItem("token", data.access_token);
+        sessionStorage.setItem("token", data.access_token);
         state.email = regEmail;
-        localStorage.setItem("paymentEmail", regEmail);
+        sessionStorage.setItem("paymentEmail", regEmail);
         if (data.payment) {
             updatePaymentState(data.payment);
         }
@@ -205,12 +205,12 @@ function logout() {
     state.chartData = null;
     state.predictions = {};
 
-    // Clear localStorage
-    localStorage.removeItem("token");
-    localStorage.removeItem("isPaid");
-    localStorage.removeItem("paymentEmail");
-    localStorage.removeItem("subscriptionExpiry");
-    localStorage.removeItem("birthDetails");
+    // Clear sessionStorage
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("isPaid");
+    sessionStorage.removeItem("paymentEmail");
+    sessionStorage.removeItem("subscriptionExpiry");
+    sessionStorage.removeItem("birthDetails");
 
     // Show auth area, hide user area
     document.getElementById("auth-area").classList.remove("hidden");
@@ -278,7 +278,7 @@ async function getReading(e) {
     }
 
     state.birthDetails = { dob, tob, pob };
-    localStorage.setItem("birthDetails", JSON.stringify(state.birthDetails));
+    sessionStorage.setItem("birthDetails", JSON.stringify(state.birthDetails));
     state.predictions = {};
     state.chartData = null;
     state.customDate = null;
@@ -745,7 +745,7 @@ async function loadPartnerPrediction() {
     } catch (err) {
         if (err.status === 402) {
             state.isPaid = false;
-            localStorage.removeItem("isPaid");
+            sessionStorage.removeItem("isPaid");
             updatePaywallUI();
         }
         errorEl.textContent = err.message;
@@ -768,7 +768,7 @@ async function checkAndUpdatePaywall() {
             const data = await api("/check-payment");
             updatePaymentState(data);
         } catch {
-            // If check fails, trust localStorage
+            // If check fails, trust sessionStorage
         }
     }
     updatePaywallUI();
@@ -855,8 +855,8 @@ async function initPayment() {
         if (data.already_paid) {
             state.isPaid = true;
             state.subscriptionExpiry = data.expires_at;
-            localStorage.setItem("isPaid", "true");
-            if (data.expires_at) localStorage.setItem("subscriptionExpiry", data.expires_at);
+            sessionStorage.setItem("isPaid", "true");
+            if (data.expires_at) sessionStorage.setItem("subscriptionExpiry", data.expires_at);
             state.predictions = {};
             updatePaywallUI();
             loadPredictions(state.activePeriod);
@@ -920,9 +920,9 @@ async function verifyPayment(email, response) {
         state.isPaid = true;
         state.email = email;
         state.subscriptionExpiry = data.expires_at;
-        localStorage.setItem("isPaid", "true");
-        localStorage.setItem("paymentEmail", email);
-        if (data.expires_at) localStorage.setItem("subscriptionExpiry", data.expires_at);
+        sessionStorage.setItem("isPaid", "true");
+        sessionStorage.setItem("paymentEmail", email);
+        if (data.expires_at) sessionStorage.setItem("subscriptionExpiry", data.expires_at);
         state.predictions = {};
         updatePaywallUI();
 
@@ -1103,7 +1103,7 @@ async function loadBestDays() {
     } catch (err) {
         if (err.status === 402) {
             state.isPaid = false;
-            localStorage.removeItem("isPaid");
+            sessionStorage.removeItem("isPaid");
             updatePaywallUI();
         }
         loading.classList.add("hidden");
@@ -1127,7 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showLoggedIn(user.full_name);
             if (user.email) {
                 state.email = user.email;
-                localStorage.setItem("paymentEmail", user.email);
+                sessionStorage.setItem("paymentEmail", user.email);
             }
             if (user.payment) {
                 updatePaymentState(user.payment);
@@ -1140,7 +1140,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }).catch(() => {
             state.token = null;
-            localStorage.removeItem("token");
+            sessionStorage.removeItem("token");
         });
     }
 
