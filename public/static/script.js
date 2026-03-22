@@ -875,7 +875,7 @@ async function initPayment() {
             amount: data.amount,
             currency: data.currency,
             name: "Jyotish AI",
-            description: "1-Year AI Vedic Astrology Subscription",
+            description: "1-Month AI Vedic Astrology Subscription",
             order_id: data.order_id,
             prefill: { email: email },
             theme: { color: "#f59e0b" },
@@ -885,7 +885,7 @@ async function initPayment() {
             modal: {
                 ondismiss: function () {
                     btn.disabled = false;
-                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
+                    btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/month";
                 },
             },
         };
@@ -903,7 +903,7 @@ async function initPayment() {
             errorEl.classList.remove("hidden");
         }
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/month";
     }
 }
 
@@ -938,7 +938,7 @@ async function verifyPayment(email, response) {
         errorEl.textContent = "Payment verification failed: " + err.message;
         errorEl.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/year";
+        btn.innerHTML = "Unlock Full Reading &mdash; &#8377;99/month";
     }
 }
 

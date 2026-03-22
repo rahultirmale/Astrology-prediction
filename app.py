@@ -417,7 +417,7 @@ def create_order(user=Depends(get_current_user_required), db: Session = Depends(
 def verify_payment(req: VerifyPaymentRequest,
                    user=Depends(get_current_user_required),
                    db: Session = Depends(get_db)):
-    """Verify Razorpay payment signature and activate 1-year subscription."""
+    """Verify Razorpay payment signature and activate 1-month subscription."""
     if not razorpay_client:
         raise HTTPException(500, "Payment gateway not configured")
 
@@ -431,7 +431,7 @@ def verify_payment(req: VerifyPaymentRequest,
         raise HTTPException(400, "Payment verification failed — invalid signature")
 
     email = user.email.lower().strip()
-    expires_at = datetime.utcnow() + timedelta(days=365)
+    expires_at = datetime.utcnow() + timedelta(days=30)
 
     # Update payment record
     try:
