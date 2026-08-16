@@ -1,6 +1,11 @@
 """
 Vercel serverless function entry point.
 Wraps the FastAPI app for Vercel's Python runtime.
+
+NOTE: @vercel/python detects the entrypoint by scanning the module's AST for a
+*top-level* binding named `app`, `application`, or `handler`. A name bound only
+inside a try/except block is not top-level, so `app` must be assigned by a plain
+module-level statement at the end of this file.
 """
 
 import sys
@@ -11,20 +16,27 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Now import the FastAPI app — wrap in try/except for debugging
-try:
-    from app import app
-except Exception as e:
-    # If app import fails, create a minimal app that shows the error
-    from fastapi import FastAPI
-    app = FastAPI()
 
-    _startup_error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+def _load_app():
+    """Import the real FastAPI app, falling back to an error-reporting stub."""
+    try:
+        from app import app as fastapi_app
 
-    @app.get("/api/{path:path}")
-    @app.post("/api/{path:path}")
-    async def error_handler(path: str):
-        return {"error": "App failed to start", "detail": _startup_error}
+        return fastapi_app
+    except Exception as exc:  # noqa: BLE001 - surface any startup failure
+        from fastapi import FastAPI
 
-# Vercel looks for an `app` variable or a `handler` function
-# FastAPI/Starlette ASGI apps are automatically detected by @vercel/python
+        startup_error = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
+        fallback = FastAPI()
+
+        @fallback.get("/api/{path:path}")
+        @fallback.post("/api/{path:path}")
+        async def error_handler(path: str):
+            return {"error": "App failed to start", "detail": startup_error}
+
+        return fallback
+
+
+# Top-level binding — this is what Vercel looks for.
+app = _load_app()
+handler = app
