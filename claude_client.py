@@ -18,6 +18,10 @@ from database import PredictionCache
 # Ensure .env is loaded (in case this module is imported before app.py runs)
 load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 
+# Model ID — override via CLAUDE_MODEL in .env if needed.
+# NOTE: claude-sonnet-4-20250514 was retired and now returns 404 not_found_error.
+MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
+
 _client = None
 
 def _get_client():
@@ -289,7 +293,7 @@ def get_prediction(chart_data: dict, prediction_type: str, category: str,
     prompt = build_prompt(chart_data, prediction_type, category, target_period)
 
     message = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=500,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
@@ -340,7 +344,7 @@ def get_best_days_prediction(chart_data: dict, category: str,
     prompt = build_best_days_prompt(chart_data, category, best_days, month_str)
 
     message = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=800,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
@@ -389,7 +393,7 @@ def get_compatibility_analysis(gun_milan: dict, boy_chart: dict,
 
     prompt = build_compatibility_prompt(gun_milan, boy_chart, girl_chart)
     message = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=700,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
@@ -435,7 +439,7 @@ def get_partner_prediction(chart_data: dict, darakaraka: dict,
 
     prompt = build_partner_prediction_prompt(chart_data, darakaraka, gender)
     message = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=700,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
