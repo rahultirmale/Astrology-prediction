@@ -22,6 +22,29 @@ load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 # NOTE: claude-sonnet-4-20250514 was retired and now returns 404 not_found_error.
 MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
 
+# Claude 5 models may return `thinking` blocks alongside the answer, so the text
+# is NOT reliably content[0]. Thinking also eats into max_tokens, which can leave
+# a response with no text block at all — hence both the helper and the explicit
+# disable below.
+THINKING = {"type": "disabled"}
+
+
+def _text_of(message):
+    """Concatenate every text block in a Claude response."""
+    parts = [
+        block.text
+        for block in message.content
+        if getattr(block, "type", None) == "text" and getattr(block, "text", "")
+    ]
+    if not parts:
+        raise RuntimeError(
+            "Claude returned no text content "
+            f"(blocks: {[getattr(b, 'type', '?') for b in message.content]}, "
+            f"stop_reason: {message.stop_reason})"
+        )
+    return "\n".join(parts).strip()
+
+
 _client = None
 
 def _get_client():
@@ -294,11 +317,12 @@ def get_prediction(chart_data: dict, prediction_type: str, category: str,
 
     message = _get_client().messages.create(
         model=MODEL,
-        max_tokens=500,
+        thinking=THINKING,
+        max_tokens=1200,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    prediction_text = message.content[0].text
+    prediction_text = _text_of(message)
 
     # Try cache write (graceful — don't crash if DB is read-only)
     try:
@@ -345,11 +369,12 @@ def get_best_days_prediction(chart_data: dict, category: str,
 
     message = _get_client().messages.create(
         model=MODEL,
-        max_tokens=800,
+        thinking=THINKING,
+        max_tokens=1600,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    narrative = message.content[0].text
+    narrative = _text_of(message)
 
     try:
         if cached:
@@ -394,11 +419,12 @@ def get_compatibility_analysis(gun_milan: dict, boy_chart: dict,
     prompt = build_compatibility_prompt(gun_milan, boy_chart, girl_chart)
     message = _get_client().messages.create(
         model=MODEL,
-        max_tokens=700,
+        thinking=THINKING,
+        max_tokens=1400,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = message.content[0].text
+    text = _text_of(message)
 
     try:
         if cached:
@@ -440,11 +466,12 @@ def get_partner_prediction(chart_data: dict, darakaraka: dict,
     prompt = build_partner_prediction_prompt(chart_data, darakaraka, gender)
     message = _get_client().messages.create(
         model=MODEL,
-        max_tokens=700,
+        thinking=THINKING,
+        max_tokens=1400,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = message.content[0].text
+    text = _text_of(message)
 
     try:
         if cached:
